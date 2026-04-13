@@ -1,0 +1,141 @@
+/* Light Red Theme CSS Variables */
+:root {
+  /* Primary Colors - Light Red Gradient Theme */
+  --primary-red: #E57373;
+  --primary-pink: #F8BBD9;
+  --light-red: #FFCDD2;
+  --dark-red: #D32F2F;
+  --accent-red: #EF5350;
+  --deep-red: #C62828;
+
+  /* Luxury Colors - Red Theme */
+  --luxury-gold: #FFB74D;
+  --luxury-rose-gold: #F8BBD9;
+  --luxury-deep-red: #B71C1C;
+  --luxury-platinum: #F5F5F5;
+  --luxury-charcoal: #424242;
+  --luxury-silver: #E0E0E0;
+
+  /* Background Colors */
+  --background-color: #FEFEFE;
+  --surface-color: #FFFFFF;
+  --luxury-background: #FEFEFE;
+  --luxury-surface: #FFFFFF;
+  --luxury-surface-variant: #F8F8F8;
+
+  /* Text Colors */
+  --text-primary: #2C2C2C;
+  --text-secondary: #6B6B6B;
+  --text-hint: #B0B0B0;
+  --luxury-text-primary: #2C2C2C;
+  --luxury-text-secondary: #6B6B6B;
+  --luxury-text-hint: #B0B0B0;
+  --luxury-text-gold: #E65100;
+
+  /* Status Colors */
+  --success-color: #66BB6A;
+  --error-color: #E57373;
+  --warning-color: #FFB74D;
+  --info-color: #42A5F5;
+
+  /* Shadow Colors */
+  --shadow-light: rgba(0, 0, 0, 0.04);
+  --shadow-medium: rgba(0, 0, 0, 0.08);
+  --shadow-dark: rgba(0, 0, 0, 0.12);
+  --luxury-shadow-light: rgba(0, 0, 0, 0.04);
+  --luxury-shadow-medium: rgba(0, 0, 0, 0.08);
+  --luxury-shadow-dark: rgba(0, 0, 0, 0.12);
+  --luxury-shadow-gold: rgba(255, 183, 77, 0.12);
+
+  /* Glow Colors */
+  --glow-primary: rgba(229, 115, 115, 0.25);
+  --glow-gold: rgba(255, 183, 77, 0.25);
+  --glow-pink: rgba(248, 187, 217, 0.25);
+  --glow-red: rgba(211, 47, 47, 0.25);
+
+  /* Border Colors */
+  --border-light: #F0F0F0;
+  --border-medium: #BDBDBD;
+  --border-dark: #757575;
+  --luxury-border-light: #F0F0F0;
+  --luxury-border-gold: #FFB74D;
+  --luxury-border-rose: #F8BBD9;
+}
+
+/* Dark Theme Variables */
+[data-theme="dark"] {
+  --primary-red: #E57373;
+  --primary-pink: #F8BBD9;
+  --light-red: #FFCDD2;
+  --dark-red: #D32F2F;
+  --accent-red: #EF5350;
+  --deep-red: #C62828;
+
+  --luxury-gold: #FFB74D;
+  --luxury-rose-gold: #F8BBD9;
+  --luxury-deep-red: #B71C1C;
+  --luxury-platinum: #F5F5F5;
+  --luxury-charcoal: #424242;
+  --luxury-silver: #E0E0E0;
+
+  --background-color: #121212;
+  --surface-color: #424242;
+  --luxury-background: #121212;
+  --luxury-surface: #424242;
+  --luxury-surface-variant: #616161;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #B0B0B0;
+  --text-hint: #757575;
+  --luxury-text-primary: #FFFFFF;
+  --luxury-text-secondary: #B0B0B0;
+  --luxury-text-hint: #757575;
+  --luxury-text-gold: #FFB74D;
+}
+
+/* Gradient Classes */
+.gradient-primary {
+  background: linear-gradient(135deg, var(--primary-red), var(--primary-pink));
+}
+
+.gradient-hero {
+  background: linear-gradient(180deg, var(--light-red), var(--primary-red));
+}
+
+.gradient-card {
+  background: linear-gradient(135deg, var(--primary-red), var(--accent-red));
+}
+
+.gradient-luxury-gold {
+  background: linear-gradient(135deg, var(--luxury-gold), #FF8A65);
+}
+
+.gradient-luxury-rose {
+  background: linear-gradient(135deg, var(--luxury-rose-gold), var(--primary-pink));
+}
+
+.gradient-luxury-red {
+  background: linear-gradient(135deg, var(--primary-red), var(--deep-red));
+}
+
+/* Utility Classes */
+.text-primary { color: var(--primary-red); }
+.text-secondary { color: var(--luxury-gold); }
+.text-tertiary { color: var(--primary-pink); }
+.bg-primary { background-color: var(--primary-red); }
+.bg-secondary { background-color: var(--luxury-gold); }
+.bg-tertiary { background-color: var(--primary-pink); }
+
+/* Shadow Classes */
+.shadow-light { box-shadow: 0 2px 8px var(--luxury-shadow-light); }
+.shadow-medium { box-shadow: 0 4px 16px var(--luxury-shadow-medium); }
+.shadow-dark { box-shadow: 0 8px 32px var(--luxury-shadow-dark); }
+.shadow-gold { box-shadow: 0 4px 16px var(--luxury-shadow-gold); }
+
+/* Glow Classes */
+.glow-primary { box-shadow: 0 0 20px var(--glow-primary); }
+.glow-gold { box-shadow: 0 0 20px var(--glow-gold); }
+.glow-pink { box-shadow: 0 0 20px var(--glow-pink); }
+.glow-red { box-shadow: 0 0 20px var(--glow-red); }
+
+
