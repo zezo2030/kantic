@@ -4,37 +4,14 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:get_it/get_it.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../auth/presentation/cubit/auth_cubit.dart';
-import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../../auth/presentation/widgets/custom_button.dart';
 import '../cubit/wallet_cubit.dart';
 import '../cubit/wallet_state.dart';
 import '../../domain/entities/wallet_transaction_entity.dart';
-import '../../../auth/presentation/widgets/custom_button.dart';
+import 'wallet_recharge_screen.dart';
 
 class WalletScreen extends StatelessWidget {
   const WalletScreen({super.key});
-
-  void _showRedeemPointsDialog(BuildContext context) {
-    final authState = context.read<AuthCubit>().state;
-    int availablePoints = 0;
-    if (authState is Authenticated && authState.user.wallet != null) {
-      availablePoints = authState.user.wallet!.loyaltyPoints;
-    }
-
-    showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return _RedeemPointsDialog(
-          availablePoints: availablePoints,
-          onConfirm: (points) {
-            Navigator.of(dialogContext).pop();
-            context.read<WalletCubit>().redeemPoints(points: points);
-          },
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,33 +24,6 @@ class WalletScreen extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
-                backgroundColor: Theme.of(context).colorScheme.error,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            );
-          } else if (state is WalletRedeemSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '${'convert_points_success'.tr()} (${state.redeemedPoints} ${'points'.tr()})',
-                ),
-                backgroundColor: AppColors.successColor,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            );
-            try {
-              context.read<AuthCubit>().getProfile();
-            } catch (_) {}
-          } else if (state is WalletRedeemFailed) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.error),
                 backgroundColor: Theme.of(context).colorScheme.error,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(
@@ -107,10 +57,7 @@ class WalletScreen extends StatelessWidget {
                     SliverFillRemaining(
                       child: _buildErrorState(context, state.message),
                     )
-                  else if (state is WalletLoaded ||
-                      state is WalletRedeemLoading ||
-                      state is WalletRedeemFailed ||
-                      state is WalletRedeemSuccess)
+                  else if (state is WalletLoaded)
                     _buildContent(context, state),
                 ],
               ),
@@ -123,7 +70,7 @@ class WalletScreen extends StatelessWidget {
 
   SliverAppBar _buildSliverAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 0, // Keeps it like a normal app bar but scrollable
+      expandedHeight: 0,
       floating: true,
       pinned: true,
       elevation: 0,
@@ -163,9 +110,9 @@ class WalletScreen extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             message,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -174,7 +121,7 @@ class WalletScreen extends StatelessWidget {
               context.read<WalletCubit>().loadWalletWithTransactions();
             },
             icon: const Icon(Iconsax.refresh, color: Colors.white, size: 20),
-            text: 'retry',
+            text: 'retry'.tr(),
             width: 150,
             useGradient: true,
           ),
@@ -183,41 +130,14 @@ class WalletScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, WalletState state) {
-    final wallet = state is WalletLoaded
-        ? state.wallet
-        : state is WalletRedeemLoading
-        ? state.wallet
-        : state is WalletRedeemFailed
-        ? state.wallet
-        : state is WalletRedeemSuccess
-        ? state.wallet
-        : null;
-    final List<WalletTransactionEntity> transactions = state is WalletLoaded
-        ? state.transactions
-        : state is WalletRedeemLoading
-        ? state.transactions
-        : state is WalletRedeemFailed
-        ? state.transactions
-        : state is WalletRedeemSuccess
-        ? state.transactions
-        : <WalletTransactionEntity>[];
-
-    if (wallet == null) {
-      return const SliverFillRemaining(
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.primaryRed),
-        ),
-      );
-    }
-
+  Widget _buildContent(BuildContext context, WalletLoaded state) {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
-          _buildBalanceCard(context, wallet),
-          const SizedBox(height: 32),
-          _buildActionSection(context, state),
+          _buildBalanceCard(context, state.wallet),
+          const SizedBox(height: 24),
+          _buildRechargeAction(context),
           const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -232,17 +152,17 @@ class WalletScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          if (state is WalletLoaded && state.isLoadingTransactions)
+          if (state.isLoadingTransactions)
             const Padding(
               padding: EdgeInsets.all(32.0),
               child: Center(
                 child: CircularProgressIndicator(color: AppColors.primaryRed),
               ),
             )
-          else if (transactions.isEmpty)
+          else if (state.transactions.isEmpty)
             _buildEmptyTransactions(context)
           else
-            _buildTransactionsList(context, transactions),
+            _buildTransactionsList(context, state.transactions),
           const SizedBox(height: 24),
         ]),
       ),
@@ -266,7 +186,6 @@ class WalletScreen extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Decorative background elements
           Positioned(
             right: -40,
             top: -40,
@@ -420,8 +339,7 @@ class WalletScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionSection(BuildContext context, WalletState state) {
-    final isLoading = state is WalletRedeemLoading;
+  Widget _buildRechargeAction(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceColor,
@@ -440,10 +358,10 @@ class WalletScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: AppColors.luxuryGoldGradient,
+              gradient: AppColors.primaryGradient,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Iconsax.diamonds5, color: Colors.white, size: 28),
+            child: const Icon(Iconsax.wallet_add_1, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -451,7 +369,7 @@ class WalletScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'convert_points_to_wallet'.tr(),
+                  'recharge_wallet'.tr(),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -459,7 +377,7 @@ class WalletScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'redeem_points_desc'.tr(),
+                  'recharge_wallet_desc'.tr(),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -468,11 +386,9 @@ class WalletScreen extends StatelessWidget {
             ),
           ),
           CustomButton(
-            onPressed: isLoading
-                ? null
-                : () => _showRedeemPointsDialog(context),
-            text: '', // Empty text because we only want the icon
-            icon: Icon(Iconsax.arrow_right_1, color: Colors.white, size: 24),
+            onPressed: () => _openRechargeScreen(context),
+            text: '',
+            icon: const Icon(Iconsax.arrow_right_1, color: Colors.white, size: 24),
             width: 56,
             height: 56,
             useGradient: true,
@@ -482,6 +398,23 @@ class WalletScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _openRechargeScreen(BuildContext context) {
+    final walletCubit = context.read<WalletCubit>();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: walletCubit,
+          child: const WalletRechargeScreen(),
+        ),
+      ),
+    ).then((_) {
+      if (walletCubit.state is! WalletLoading) {
+        walletCubit.loadWalletWithTransactions();
+      }
+    });
   }
 
   Widget _buildEmptyTransactions(BuildContext context) {
@@ -496,7 +429,7 @@ class WalletScreen extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.luxurySurfaceVariant,
                 shape: BoxShape.circle,
               ),
@@ -518,9 +451,9 @@ class WalletScreen extends StatelessWidget {
             Text(
               'transactions_empty_desc'.tr(),
               textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -538,8 +471,7 @@ class WalletScreen extends StatelessWidget {
       itemCount: transactions.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final transaction = transactions[index];
-        return _buildTransactionItem(context, transaction);
+        return _buildTransactionItem(context, transactions[index]);
       },
     );
   }
@@ -553,9 +485,7 @@ class WalletScreen extends StatelessWidget {
 
     final color = isDeposit ? AppColors.successColor : AppColors.errorColor;
     final icon = isDeposit ? Iconsax.arrow_down_2 : Iconsax.arrow_up_2;
-    final StatusColor = isSuccess
-        ? AppColors.successColor
-        : AppColors.errorColor;
+    final statusColor = isSuccess ? AppColors.successColor : AppColors.errorColor;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -594,9 +524,7 @@ class WalletScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  DateFormat(
-                    'MMM dd, yyyy • HH:mm',
-                  ).format(transaction.createdAt),
+                  DateFormat('MMM dd, yyyy • HH:mm').format(transaction.createdAt),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -605,7 +533,7 @@ class WalletScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Iconsax.card, size: 14, color: AppColors.textHint),
+                      const Icon(Iconsax.card, size: 14, color: AppColors.textHint),
                       const SizedBox(width: 4),
                       Text(
                         transaction.method!,
@@ -637,13 +565,13 @@ class WalletScreen extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: StatusColor.withOpacity(0.1),
+                  color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   isSuccess ? 'success'.tr() : 'failed'.tr(),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: StatusColor,
+                    color: statusColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -651,190 +579,6 @@ class WalletScreen extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _RedeemPointsDialog extends StatefulWidget {
-  final int availablePoints;
-  final Function(int) onConfirm;
-
-  const _RedeemPointsDialog({
-    required this.availablePoints,
-    required this.onConfirm,
-  });
-
-  @override
-  State<_RedeemPointsDialog> createState() => _RedeemPointsDialogState();
-}
-
-class _RedeemPointsDialogState extends State<_RedeemPointsDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      elevation: 0,
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceColor,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: AppColors.luxuryGoldGradient,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Iconsax.convert_3d_cube,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'convert_points_to_wallet'.tr(),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${'loyalty_points_balance'.tr()}: ${widget.availablePoints}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _controller,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-                decoration: InputDecoration(
-                  labelText: 'points'.tr(),
-                  labelStyle: TextStyle(
-                    color: AppColors.textHint,
-                    fontWeight: FontWeight.normal,
-                    fontSize: 14,
-                  ),
-                  prefixIcon: const Icon(
-                    Iconsax.star1,
-                    color: AppColors.luxuryGold,
-                  ),
-                  filled: true,
-                  fillColor: AppColors.luxurySurfaceVariant,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(
-                      color: AppColors.primaryRed,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-                validator: (value) {
-                  final v = value?.trim() ?? '';
-                  final n = int.tryParse(v);
-                  if (n == null || n <= 0) return 'enter_valid_points'.tr();
-                  if (n > widget.availablePoints) {
-                    return 'points_not_enough'.tr();
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: AppColors.borderLight),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        'cancel'.tr(),
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (!_formKey.currentState!.validate()) return;
-                        final points = int.parse(_controller.text.trim());
-                        widget.onConfirm(points);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryRed,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'confirm'.tr(),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

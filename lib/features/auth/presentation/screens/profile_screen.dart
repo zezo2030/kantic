@@ -206,17 +206,6 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 32),
 
-          // My Bookings Entry
-          CustomButton(
-            text: 'my_bookings',
-            icon: const Icon(Icons.calendar_today_outlined, size: 20),
-            onPressed: () {
-              Navigator.pushNamed(context, '/my-bookings');
-            },
-          ),
-
-          const SizedBox(height: 16),
-
           // School Booking Entry
           CustomButton(
             text: 'school_booking',

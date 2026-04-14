@@ -17,7 +17,6 @@ import '../widgets/branch_commerce_section.dart';
 import '../widgets/hall_video_player.dart';
 import '../../../../core/utils/url_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../booking/presentation/pages/booking_wizard_page.dart';
 import '../../../events/presentation/pages/create_event_request_page.dart';
 import '../../../trips/presentation/pages/trip_request_wizard_page.dart';
 import '../../../../core/routes/app_route_generator.dart';
@@ -114,10 +113,6 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
           return Scaffold(
             backgroundColor: AppColors.backgroundColor,
             body: _buildBranchDetails(context, state.branch),
-            bottomNavigationBar: _buildBottomNavigationBar(
-              context,
-              state.branch,
-            ),
           );
         }
 
@@ -831,7 +826,9 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
                     onPressed: () async {
                       if (branch.contactPhone != null &&
                           branch.contactPhone!.isNotEmpty) {
-                        final Uri telUri = Uri.parse('tel:${branch.contactPhone}');
+                        final Uri telUri = Uri.parse(
+                          'tel:${branch.contactPhone}',
+                        );
                         try {
                           if (await canLaunchUrl(telUri)) {
                             await launchUrl(telUri);
@@ -871,7 +868,8 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
               width: double.infinity,
               child: CustomButton(
                 onPressed: () async {
-                  if (branch.contactPhone != null && branch.contactPhone!.isNotEmpty) {
+                  if (branch.contactPhone != null &&
+                      branch.contactPhone!.isNotEmpty) {
                     final Uri telUri = Uri.parse('tel:${branch.contactPhone}');
                     try {
                       if (await canLaunchUrl(telUri)) {
@@ -1037,55 +1035,6 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar(BuildContext context, BranchEntity branch) {
-    final isBookable = branch.hallStatus?.toLowerCase() == 'available';
-    final label = isBookable
-        ? 'book_tickets'.tr()
-        : 'branch_not_available'.tr();
-
-    return Container(
-      padding: const EdgeInsets.all(20).copyWith(bottom: 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(32),
-          topRight: Radius.circular(32),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: CustomButton(
-          onPressed: isBookable
-              ? () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BookingWizardPage(
-                        branchId: branch.id,
-                        branchName: branch.nameAr,
-                      ),
-                    ),
-                  );
-                }
-              : null,
-          text: label,
-          useGradient: isBookable,
-          isEnabled: isBookable,
-          backgroundColor: isBookable ? null : Colors.grey.shade300,
-          icon: const Icon(Iconsax.ticket, color: Colors.white, size: 24),
-          height: 56,
-          showShadow: false,
         ),
       ),
     );

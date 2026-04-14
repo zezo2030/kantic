@@ -1,8 +1,6 @@
-import 'dart:typed_data';
 import 'dart:convert';
 
 import 'package:easy_localization/easy_localization.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,7 +11,6 @@ import '../../../payments/presentation/cubit/payment_cubit.dart';
 import '../../../payments/di/payments_injection.dart' as payments_di;
 import '../../../tickets/data/datasources/tickets_remote_datasource.dart';
 import '../../../../core/network/dio_client.dart';
-import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/share_utils.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../booking/presentation/widgets/modern_ticket_widget.dart';
@@ -22,6 +19,65 @@ import '../../domain/entities/school_trip_request_entity.dart';
 import '../../domain/entities/trip_request_status.dart';
 import '../cubit/trip_request_details_cubit.dart';
 import '../cubit/trip_request_details_state.dart';
+import 'trip_request_moyasar_payment_page.dart';
+
+double _tripTicketsSubtotalForPay(SchoolTripRequestEntity request) {
+  final perStudent = request.pricePerStudent ??
+      ((request.quotedPrice ?? 0) /
+          (request.studentsCount == 0 ? 1 : request.studentsCount));
+  return perStudent * request.studentsCount;
+}
+
+double _tripAddOnsSubtotalForPay(SchoolTripRequestEntity request) =>
+    request.addOns.fold<double>(0, (s, a) => s + a.price * a.quantity);
+
+double _tripGrandTotalForPay(SchoolTripRequestEntity request) =>
+    request.totalPrice ??
+    request.quotedPrice ??
+    (_tripTicketsSubtotalForPay(request) + _tripAddOnsSubtotalForPay(request));
+
+double _tripDepositForPay(SchoolTripRequestEntity request) =>
+    request.depositAmount ?? (_tripGrandTotalForPay(request) * 0.2);
+
+/// المتبقي بعد العربون (يُعرض في التفاصيل؛ يُسدد في الفرع بعد دفع العربون من التطبيق).
+double tripRemainingBalanceSar(SchoolTripRequestEntity request) {
+  final grand = _tripGrandTotalForPay(request);
+  final deposit = _tripDepositForPay(request);
+  if (request.status == TripRequestStatus.depositPaid) {
+    if (request.remainingAmount != null && request.remainingAmount! >= 0) {
+      return request.remainingAmount!;
+    }
+    final paid = request.amountPaid ?? deposit;
+    final left = grand - paid;
+    return left > 0 ? left : 0;
+  }
+  if (request.paymentOption == 'deposit' || request.depositAmount != null) {
+    final left = grand - deposit;
+    return left > 0 ? left : 0;
+  }
+  return 0;
+}
+
+/// المبلغ القابل للدفع داخل التطبيق (بعد دفع العربون يُكمّل المتبقي في الفرع فقط).
+double tripPayableAmountSar(SchoolTripRequestEntity request) {
+  if (request.status == TripRequestStatus.depositPaid) {
+    return 0;
+  }
+  final grand = _tripGrandTotalForPay(request);
+  if (request.paymentOption == 'deposit') {
+    return _tripDepositForPay(request);
+  }
+  return grand;
+}
+
+String tripPayableAmountLabel(SchoolTripRequestEntity request) {
+  if ((request.status == TripRequestStatus.approved ||
+          request.status == TripRequestStatus.invoiced) &&
+      request.paymentOption == 'deposit') {
+    return 'trip_deposit'.tr();
+  }
+  return 'total_amount'.tr();
+}
 
 class TripRequestDetailsPage extends StatefulWidget {
   const TripRequestDetailsPage({
@@ -91,7 +147,8 @@ class _TripRequestDetailsPageState extends State<TripRequestDetailsPage> {
             }
 
             if ((request.status == TripRequestStatus.paid ||
-                    request.status == TripRequestStatus.completed) &&
+                    request.status == TripRequestStatus.completed ||
+                    request.status == TripRequestStatus.depositPaid) &&
                 !_loadingTickets &&
                 _lastLoadedRequestId != request.id) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -119,17 +176,15 @@ class _TripRequestDetailsPageState extends State<TripRequestDetailsPage> {
                           const SizedBox(height: 24),
                           _InfoSection(request: request),
                           const SizedBox(height: 24),
-                          _ParticipantsSection(request: request),
-                          const SizedBox(height: 24),
                           if (request.addOns.isNotEmpty) ...[
                             _AddOnsSection(request: request),
                             const SizedBox(height: 24),
                           ],
-                          _StatusTimelineSection(request: request),
-                          const SizedBox(height: 24),
                           if (request.status == TripRequestStatus.paid ||
                               request.status ==
-                                  TripRequestStatus.completed) ...[
+                                  TripRequestStatus.completed ||
+                              request.status ==
+                                  TripRequestStatus.depositPaid) ...[
                             _TicketsSection(
                               request: request,
                               tickets: _tickets,
@@ -140,11 +195,9 @@ class _TripRequestDetailsPageState extends State<TripRequestDetailsPage> {
                           _ActionsSection(
                             request: request,
                             isSubmitting: state.isSubmitting,
-                            isUploading: state.isUploading,
-                            onSubmit: () =>
-                                _cubit.submitRequest(widget.requestId),
-                            onUpload: _handleFileUpload,
                             onCancel: () => _showCancelConfirmation(context),
+                            onAfterSuccessfulPayment: () async =>
+                                _cubit.load(widget.requestId),
                           ),
                           const SizedBox(height: 40),
                         ],
@@ -223,42 +276,6 @@ class _TripRequestDetailsPageState extends State<TripRequestDetailsPage> {
         margin: const EdgeInsets.all(16),
       ),
     );
-  }
-
-  Future<void> _handleFileUpload() async {
-    final pickResult = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['xlsx', 'xls', 'csv'],
-      withData: true,
-    );
-    if (pickResult == null || pickResult.files.isEmpty) return;
-
-    final file = pickResult.files.first;
-    final bytes = file.bytes ?? await _readFileBytes(file);
-    if (bytes == null) {
-      if (!mounted) return;
-      _showSnackBar(context, 'file_pick_failed'.tr(), isError: true);
-      return;
-    }
-
-    if (!mounted) return;
-    await _cubit.uploadParticipants(
-      requestId: widget.requestId,
-      fileBytes: bytes,
-      filename: file.name,
-      contentType: file.extension,
-    );
-  }
-
-  Future<Uint8List?> _readFileBytes(PlatformFile file) async {
-    if (file.bytes != null) return file.bytes;
-    final stream = file.readStream;
-    if (stream == null) return null;
-    final builder = BytesBuilder();
-    await for (final chunk in stream) {
-      builder.add(chunk);
-    }
-    return builder.toBytes();
   }
 
   Future<void> _loadTickets(BuildContext context, String tripRequestId) async {
@@ -483,7 +500,9 @@ class _HeaderSection extends StatelessWidget {
       case TripRequestStatus.underReview:
         return tr('status_under_review');
       case TripRequestStatus.approved:
-        return tr('status_approved');
+        return tr('trip_status_ready_for_payment');
+      case TripRequestStatus.depositPaid:
+        return tr('status_deposit_paid');
       case TripRequestStatus.rejected:
         return tr('status_rejected');
       case TripRequestStatus.invoiced:
@@ -504,8 +523,25 @@ class _InfoSection extends StatelessWidget {
   const _InfoSection({required this.request});
   final SchoolTripRequestEntity request;
 
+  double get _computedAddOnsTotal =>
+      request.addOns.fold<double>(0, (sum, item) => sum + (item.price * item.quantity));
+
+  double get _computedTicketsTotal {
+    final perStudent =
+        request.pricePerStudent ?? ((request.quotedPrice ?? 0) / (request.studentsCount == 0 ? 1 : request.studentsCount));
+    return perStudent * request.studentsCount;
+  }
+
+  String get _paymentOptionLabel {
+    if (request.paymentOption == 'deposit') {
+      return tr('trip_pay_deposit');
+    }
+    return tr('trip_pay_full');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final remainingBalance = tripRemainingBalanceSar(request);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -533,17 +569,58 @@ class _InfoSection extends StatelessWidget {
               ),
               _buildDivider(),
               _InfoRow(
-                icon: Iconsax.teacher,
-                label: 'accompanying_adults'.tr(),
-                value: request.accompanyingAdults.toString(),
+                icon: Iconsax.wallet_1,
+                label: 'trip_payment_option'.tr(),
+                value: _paymentOptionLabel,
+              ),
+              if (request.pricePerStudent != null) ...[
+                _buildDivider(),
+                _InfoRow(
+                  icon: Iconsax.tag,
+                  label: 'trip_price_per_student'.tr(),
+                  value:
+                      '${request.pricePerStudent!.toStringAsFixed(2)} ${'currency'.tr()}',
+                ),
+              ],
+              _buildDivider(),
+              _InfoRow(
+                icon: Iconsax.receipt_2,
+                label: 'trip_tickets_total'.tr(),
+                value:
+                    '${(request.ticketsTotal ?? _computedTicketsTotal).toStringAsFixed(2)} ${'currency'.tr()}',
               ),
               _buildDivider(),
               _InfoRow(
-                icon: Iconsax.people,
-                label: 'total_participants'.tr(),
-                value: (request.studentsCount + request.accompanyingAdults)
-                    .toString(),
+                icon: Iconsax.box,
+                label: 'trip_addons_total'.tr(),
+                value:
+                    '${(request.addOnsTotal ?? _computedAddOnsTotal).toStringAsFixed(2)} ${'currency'.tr()}',
               ),
+              _buildDivider(),
+              _InfoRow(
+                icon: Iconsax.money_recive,
+                label: 'trip_grand_total'.tr(),
+                value:
+                    '${(request.totalPrice ?? request.quotedPrice ?? (_computedTicketsTotal + _computedAddOnsTotal)).toStringAsFixed(2)} ${'currency'.tr()}',
+              ),
+              if (request.paymentOption == 'deposit' || request.depositAmount != null) ...[
+                _buildDivider(),
+                _InfoRow(
+                  icon: Iconsax.card,
+                  label: 'trip_deposit'.tr(),
+                  value:
+                      '${(request.depositAmount ?? ((request.totalPrice ?? request.quotedPrice ?? (_computedTicketsTotal + _computedAddOnsTotal)) * 0.2)).toStringAsFixed(2)} ${'currency'.tr()}',
+                ),
+                if (remainingBalance > 0) ...[
+                  _buildDivider(),
+                  _InfoRow(
+                    icon: Iconsax.wallet_add,
+                    label: 'trip_remaining_balance'.tr(),
+                    value:
+                        '${remainingBalance.toStringAsFixed(2)} ${'currency'.tr()}',
+                  ),
+                ],
+              ],
               if (request.specialRequirements != null &&
                   request.specialRequirements!.isNotEmpty) ...[
                 _buildDivider(),
@@ -551,46 +628,6 @@ class _InfoSection extends StatelessWidget {
                   icon: Iconsax.note_text,
                   label: 'special_requirements'.tr(),
                   value: request.specialRequirements!,
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        _buildSectionTitle('contact_information'.tr(), Iconsax.call),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadowColor.withOpacity(0.05),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              _InfoRow(
-                icon: Iconsax.user,
-                label: 'contact_person'.tr(),
-                value: request.contactPersonName,
-              ),
-              _buildDivider(),
-              _InfoRow(
-                icon: Iconsax.call,
-                label: 'contact_phone'.tr(),
-                value: request.contactPhone,
-              ),
-              if (request.contactEmail != null) ...[
-                _buildDivider(),
-                _InfoRow(
-                  icon: Iconsax.sms,
-                  label: 'contact_email'.tr(),
-                  value: request.contactEmail!,
                 ),
               ],
             ],
@@ -628,157 +665,6 @@ class _InfoSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Divider(color: Colors.grey.withOpacity(0.1), height: 1),
-    );
-  }
-}
-
-class _ParticipantsSection extends StatelessWidget {
-  const _ParticipantsSection({required this.request});
-  final SchoolTripRequestEntity request;
-
-  @override
-  Widget build(BuildContext context) {
-    final participants = request.participants;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColor.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ExpansionTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        collapsedShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        iconColor: AppColors.primaryRed,
-        collapsedIconColor: AppColors.textSecondary,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primaryRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Iconsax.people,
-                color: AppColors.primaryRed,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'participants_list'.tr(),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4, right: 44, left: 44),
-          child: Text(
-            tr('participants_count', args: [participants.length.toString()]),
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-            ),
-          ),
-        ),
-        children: [
-          if (participants.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Icon(
-                    Iconsax.folder_cross,
-                    size: 40,
-                    color: Colors.grey.withOpacity(0.3),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'no_participants_uploaded'.tr(),
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              itemCount: participants.length,
-              separatorBuilder: (context, index) =>
-                  Divider(color: Colors.grey.withOpacity(0.1)),
-              itemBuilder: (context, index) {
-                final p = participants[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.greyLight,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Iconsax.user,
-                          color: AppColors.textSecondary,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              p.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              tr(
-                                'participant_details',
-                                args: [
-                                  p.age.toString(),
-                                  p.guardianName,
-                                  p.guardianPhone,
-                                ],
-                              ),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
     );
   }
 }
@@ -912,237 +798,26 @@ class _AddOnsSection extends StatelessWidget {
   }
 }
 
-class _StatusTimelineSection extends StatelessWidget {
-  const _StatusTimelineSection({required this.request});
-  final SchoolTripRequestEntity request;
-
-  @override
-  Widget build(BuildContext context) {
-    final statuses = <TripRequestStatus>[
-      TripRequestStatus.pending,
-      TripRequestStatus.underReview,
-      TripRequestStatus.approved,
-      TripRequestStatus.paid,
-      TripRequestStatus.completed,
-    ];
-
-    var currentStatus = request.status;
-    if (currentStatus == TripRequestStatus.invoiced) {
-      currentStatus = TripRequestStatus.approved;
-    }
-
-    final currentIndex = statuses.indexWhere(
-      (status) => status == currentStatus,
-    );
-    final isRejectedOrCancelled =
-        currentStatus == TripRequestStatus.rejected ||
-        currentStatus == TripRequestStatus.cancelled;
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColor.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryRed.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Iconsax.routing,
-                  color: AppColors.primaryRed,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'trip_status_progress'.tr(),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          if (isRejectedOrCancelled)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.errorColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.errorColor.withOpacity(0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Iconsax.info_circle, color: AppColors.errorColor),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _statusLabel(currentStatus),
-                      style: const TextStyle(
-                        color: AppColors.errorColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Column(
-              children: statuses.map((status) {
-                final index = statuses.indexOf(status);
-                final isReached = currentIndex >= index;
-                final isCurrent = currentIndex == index;
-
-                Color iconColor;
-                if (isCurrent) {
-                  iconColor = AppColors.primaryRed;
-                } else if (isReached) {
-                  iconColor = AppColors.successColor;
-                } else {
-                  iconColor = Colors.grey.shade300;
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isReached
-                                ? iconColor.withOpacity(0.1)
-                                : Colors.transparent,
-                            border: Border.all(
-                              color: iconColor,
-                              width: isReached ? 0 : 2,
-                            ),
-                          ),
-                          child: isReached
-                              ? Icon(
-                                  isCurrent
-                                      ? Icons.radio_button_checked
-                                      : Icons.check,
-                                  size: 16,
-                                  color: iconColor,
-                                )
-                              : null,
-                        ),
-                        if (index != statuses.length - 1)
-                          Container(
-                            width: 2,
-                            height: 36,
-                            color: isReached
-                                ? AppColors.successColor
-                                : Colors.grey.shade200,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          _statusLabel(status),
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: isCurrent
-                                ? FontWeight.bold
-                                : (isReached
-                                      ? FontWeight.w600
-                                      : FontWeight.normal),
-                            color: isCurrent
-                                ? AppColors.primaryRed
-                                : (isReached
-                                      ? AppColors.textPrimary
-                                      : AppColors.textSecondary),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _statusLabel(TripRequestStatus status) {
-    switch (status) {
-      case TripRequestStatus.pending:
-        return tr('status_pending');
-      case TripRequestStatus.underReview:
-        return tr('status_under_review');
-      case TripRequestStatus.approved:
-        return tr('status_approved');
-      case TripRequestStatus.rejected:
-        return tr('status_rejected');
-      case TripRequestStatus.invoiced:
-        return tr('status_invoiced');
-      case TripRequestStatus.paid:
-        return tr('status_paid');
-      case TripRequestStatus.completed:
-        return tr('status_completed');
-      case TripRequestStatus.cancelled:
-        return tr('status_cancelled');
-      case TripRequestStatus.unknown:
-        return tr('status_unknown');
-    }
-  }
-}
-
 class _ActionsSection extends StatelessWidget {
   const _ActionsSection({
     required this.request,
     required this.isSubmitting,
-    required this.isUploading,
-    required this.onSubmit,
-    required this.onUpload,
     required this.onCancel,
+    this.onAfterSuccessfulPayment,
   });
 
   final SchoolTripRequestEntity request;
   final bool isSubmitting;
-  final bool isUploading;
-  final VoidCallback onSubmit;
-  final VoidCallback onUpload;
   final VoidCallback onCancel;
+  final Future<void> Function()? onAfterSuccessfulPayment;
 
-  bool get _isStatusAllowsSubmit => request.status == TripRequestStatus.pending;
+  double? get payableAmount {
+    final v = tripPayableAmountSar(request);
+    if (v <= 0) return null;
+    return v;
+  }
 
-  bool get hasParticipantsData =>
-      (request.excelFilePath != null && request.excelFilePath!.isNotEmpty) ||
-      request.participants.isNotEmpty;
-
-  bool get canSubmit => _isStatusAllowsSubmit && hasParticipantsData;
-
-  bool get canUpload =>
-      request.status == TripRequestStatus.pending ||
-      request.status == TripRequestStatus.underReview;
+  String get payableAmountLabel => tripPayableAmountLabel(request);
 
   bool get canCancel =>
       request.status == TripRequestStatus.pending ||
@@ -1161,88 +836,47 @@ class _ActionsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_isStatusAllowsSubmit && !hasParticipantsData)
+        if (request.status == TripRequestStatus.depositPaid) ...[
+          const SizedBox(height: 16),
           Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.warningColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.warningColor.withOpacity(0.5),
-              ),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadowColor.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Iconsax.warning_2, color: AppColors.warningColor),
+                const Icon(
+                  Iconsax.info_circle,
+                  color: AppColors.primaryRed,
+                  size: 22,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'upload_participants_required'.tr(),
-                    style: TextStyle(
-                      color: AppColors.luxuryTextGold,
-                      fontWeight: FontWeight.w600,
+                    'trip_remaining_pay_at_branch'.tr(),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
-        if (canUpload) ...[
-          _buildActionButton(
-            onPressed: () async {
-              final Uri url = Uri.parse(
-                '${ApiConstants.baseUrl}/trips/template/download',
-              );
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              } else {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('cannot_open_link'.tr())),
-                  );
-                }
-              }
-            },
-            icon: Iconsax.document_download,
-            label: 'download_template'.tr(),
-            isOutlined: true,
-          ),
-          const SizedBox(height: 16),
         ],
-
-        if (canUpload)
-          _buildActionButton(
-            onPressed: isUploading ? () {} : onUpload,
-            icon: hasParticipantsData
-                ? Iconsax.tick_circle
-                : Iconsax.document_upload,
-            label: hasParticipantsData
-                ? 'reupload_participants'.tr()
-                : 'upload_participants'.tr(),
-            isLoading: isUploading,
-            isSuccess: hasParticipantsData,
-            isOutlined: false,
-            customColor: hasParticipantsData
-                ? AppColors.successColor
-                : AppColors.primaryRed,
-          ),
-
-        const SizedBox(height: 16),
-
-        if (_isStatusAllowsSubmit)
-          _buildActionButton(
-            onPressed: (canSubmit && !isSubmitting) ? onSubmit : () {},
-            icon: Iconsax.send_2,
-            label: 'submit_trip_request'.tr(),
-            isLoading: isSubmitting,
-            isDisabled: !canSubmit,
-          ),
-
         if ((request.status == TripRequestStatus.approved ||
                 request.status == TripRequestStatus.invoiced) &&
-            request.quotedPrice != null) ...[
+            payableAmount != null) ...[
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(24),
@@ -1262,10 +896,10 @@ class _ActionsSection extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Iconsax.verify, color: Colors.white),
+                    const Icon(Iconsax.wallet_1, color: Colors.white),
                     const SizedBox(width: 8),
                     Text(
-                      'trip_approved_title'.tr(),
+                      'trip_payment_section_title'.tr(),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -1276,7 +910,7 @@ class _ActionsSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'total_amount'.tr(),
+                  payableAmountLabel,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.9),
                     fontSize: 14,
@@ -1284,7 +918,7 @@ class _ActionsSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${request.quotedPrice!.toStringAsFixed(2)} ${'currency'.tr()}',
+                  '${payableAmount!.toStringAsFixed(2)} ${'currency'.tr()}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -1293,7 +927,11 @@ class _ActionsSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  onPressed: () => _showPaymentMethodDialog(context, request),
+                  onPressed: () => _showPaymentMethodDialog(
+                    context,
+                    request,
+                    onAfterSuccessfulPayment,
+                  ),
                   style: ElevatedButton.styleFrom(
                     foregroundColor: AppColors.luxuryDeepRed,
                     backgroundColor: Colors.white,
@@ -1339,7 +977,6 @@ class _ActionsSection extends StatelessWidget {
     bool isLoading = false,
     bool isOutlined = false,
     bool isDisabled = false,
-    bool isSuccess = false,
     Color? customColor,
   }) {
     final color = customColor ?? AppColors.primaryRed;
@@ -1403,6 +1040,7 @@ class _ActionsSection extends StatelessWidget {
   void _showPaymentMethodDialog(
     BuildContext context,
     SchoolTripRequestEntity request,
+    Future<void> Function()? onAfterSuccessfulPayment,
   ) {
     showDialog(
       context: context,
@@ -1438,7 +1076,12 @@ class _ActionsSection extends StatelessWidget {
                 ),
                 onTap: () {
                   Navigator.pop(dialogContext);
-                  _processPayment(context, request, 'credit_card');
+                  _processPayment(
+                    context,
+                    request,
+                    'credit_card',
+                    onAfterSuccessfulPayment,
+                  );
                 },
               ),
             ),
@@ -1466,7 +1109,12 @@ class _ActionsSection extends StatelessWidget {
                 ),
                 onTap: () {
                   Navigator.pop(dialogContext);
-                  _processPayment(context, request, 'wallet');
+                  _processPayment(
+                    context,
+                    request,
+                    'wallet',
+                    onAfterSuccessfulPayment,
+                  );
                 },
               ),
             ),
@@ -1489,6 +1137,7 @@ class _ActionsSection extends StatelessWidget {
     BuildContext context,
     SchoolTripRequestEntity request,
     String method,
+    Future<void> Function()? onAfterSuccessfulPayment,
   ) {
     try {
       payments_di.initPayments();
@@ -1504,14 +1153,45 @@ class _ActionsSection extends StatelessWidget {
         child: BlocConsumer<PaymentCubit, PaymentState>(
           listener: (ctx, state) async {
             if (state is PaymentIntentCreated) {
-              if (state.intent.redirectUrl != null) {
-                final url = Uri.parse(state.intent.redirectUrl!);
+              final redirect = state.intent.redirectUrl;
+              if (redirect != null && redirect.isNotEmpty) {
+                final url = Uri.parse(redirect);
                 if (await canLaunchUrl(url)) {
                   await launchUrl(url, mode: LaunchMode.externalApplication);
                 }
+              } else if (method == 'credit_card') {
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  if (!dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  if (!context.mounted) return;
+                  final payable =
+                      state.intent.amount ?? tripPayableAmountSar(request);
+                  final paid = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute<bool>(
+                      builder: (_) => TripRequestMoyasarPaymentPage(
+                        tripRequestId: request.id,
+                        paymentId: state.intent.paymentId,
+                        amount: payable,
+                      ),
+                    ),
+                  );
+                  if (!context.mounted) return;
+                  if (paid == true) {
+                    await onAfterSuccessfulPayment?.call();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('payment_success'.tr()),
+                        backgroundColor: AppColors.successColor,
+                      ),
+                    );
+                  }
+                });
               }
             } else if (state is PaymentSuccess) {
               Navigator.pop(dialogContext);
+              await onAfterSuccessfulPayment?.call();
+              if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('payment_success'.tr()),
@@ -1561,7 +1241,7 @@ class _ActionsSection extends StatelessWidget {
 
     paymentCubit.payForTripRequest(
       tripRequestId: request.id,
-      amount: request.quotedPrice ?? 0,
+      amount: tripPayableAmountSar(request),
       method: method,
     );
   }
@@ -1637,7 +1317,8 @@ class _TicketsSection extends StatelessWidget {
     );
 
     if (request.status != TripRequestStatus.paid &&
-        request.status != TripRequestStatus.completed) {
+        request.status != TripRequestStatus.completed &&
+        request.status != TripRequestStatus.depositPaid) {
       return const SizedBox.shrink();
     }
 

@@ -1,20 +1,19 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/get_wallet_usecase.dart';
 import '../../domain/usecases/get_transactions_usecase.dart';
-import '../../domain/usecases/redeem_points_usecase.dart';
+import '../../domain/usecases/recharge_wallet_usecase.dart';
 import '../../domain/entities/wallet_transaction_entity.dart';
-import '../../domain/repositories/wallet_repository.dart';
 import 'wallet_state.dart';
 
 class WalletCubit extends Cubit<WalletState> {
   final GetWalletUseCase getWalletUseCase;
   final GetTransactionsUseCase getTransactionsUseCase;
-  final RedeemPointsUseCase redeemPointsUseCase;
+  final RechargeWalletUseCase rechargeWalletUseCase;
 
   WalletCubit({
     required this.getWalletUseCase,
     required this.getTransactionsUseCase,
-    required this.redeemPointsUseCase,
+    required this.rechargeWalletUseCase,
   }) : super(WalletInitial());
 
   Future<void> loadWallet() async {
@@ -62,14 +61,14 @@ class WalletCubit extends Cubit<WalletState> {
         transactions,
       ) {
         if (state is WalletLoaded) {
-          final currentState = state as WalletLoaded;
-          final allTransactions = page == 1
+          final current = state as WalletLoaded;
+          final all = page == 1
               ? transactions
-              : [...currentState.transactions, ...transactions];
+              : [...current.transactions, ...transactions];
           emit(
             WalletLoaded(
-              wallet: currentState.wallet,
-              transactions: allTransactions,
+              wallet: current.wallet,
+              transactions: all,
               hasMoreTransactions: transactions.length == 20,
             ),
           );
@@ -78,61 +77,76 @@ class WalletCubit extends Cubit<WalletState> {
     }
   }
 
-  Future<void> redeemPoints({required int points}) async {
-    if (points <= 0) {
-      emit(WalletError('عدد النقاط غير صحيح'));
-      return;
-    }
-
-    WalletLoaded? currentLoaded;
-    if (state is WalletLoaded) currentLoaded = state as WalletLoaded;
+  Future<void> rechargeWallet({
+    required double amount,
+  }) async {
+    final currentLoaded = state is WalletLoaded ? state as WalletLoaded : null;
 
     emit(
-      WalletRedeemLoading(
+      WalletRechargeLoading(
         wallet: currentLoaded?.wallet,
         transactions: currentLoaded?.transactions ?? const [],
       ),
     );
 
-    final redeemResult = await redeemPointsUseCase(points: points);
+    final result = await rechargeWalletUseCase(amount: amount);
 
-    await redeemResult.fold(
-      (failure) async {
+    result.fold(
+      (failure) {
         emit(
-          WalletRedeemFailed(
+          WalletRechargeFailed(
             wallet: currentLoaded?.wallet,
             transactions: currentLoaded?.transactions ?? const [],
             error: failure.message,
           ),
         );
       },
-      (RedeemPointsResult result) async {
-        // Refresh wallet + transactions after redeem
-        final walletRes = await getWalletUseCase();
-        final txRes = await getTransactionsUseCase(page: 1, pageSize: 20);
-
-        walletRes.fold((failure) => emit(WalletError(failure.message)), (
-          wallet,
-        ) {
-          txRes.fold((failure) => emit(WalletError(failure.message)), (txs) {
-            emit(
-              WalletRedeemSuccess(
-                wallet: wallet,
-                transactions: txs,
-                redeemedPoints: result.redeemed,
-                creditedAmount: result.credit,
-              ),
-            );
-            emit(
-              WalletLoaded(
-                wallet: wallet,
-                transactions: txs,
-                hasMoreTransactions: txs.length == 20,
-              ),
-            );
-          });
-        });
+      (rechargeResult) {
+        emit(
+          WalletRechargeSuccess(
+            wallet: currentLoaded?.wallet,
+            transactions: currentLoaded?.transactions ?? const [],
+            redirectUrl: rechargeResult.redirectUrl,
+            paymentId: rechargeResult.paymentId,
+            amount: amount,
+          ),
+        );
+        if (currentLoaded != null) {
+          emit(
+            WalletLoaded(
+              wallet: currentLoaded.wallet,
+              transactions: currentLoaded.transactions,
+              hasMoreTransactions: currentLoaded.hasMoreTransactions,
+            ),
+          );
+        }
       },
     );
+  }
+
+  Future<bool> confirmRechargePayment({
+    required String paymentId,
+    required String moyasarPaymentId,
+  }) async {
+    final result = await rechargeWalletUseCase.confirmPayment(
+      paymentId: paymentId,
+      moyasarPaymentId: moyasarPaymentId,
+    );
+
+    bool confirmed = false;
+    result.fold(
+      (failure) {
+        emit(WalletError(failure.message));
+      },
+      (ok) {
+        confirmed = ok;
+      },
+    );
+
+    if (confirmed) {
+      await loadWalletWithTransactions();
+    }
+
+    return confirmed;
   }
 }

@@ -61,53 +61,57 @@ class _KineticOtpLoginScreenState extends State<KineticOtpLoginScreen> {
           },
           builder: (context, state) {
             final bool isLoading = state is AuthLoading;
+            final double bottomInset = MediaQuery.paddingOf(context).bottom;
 
-            return Column(
-              children: [
-                // Header gradient with white logo - takes remaining space
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: <Color>[
-                          Color(0xFFE6003A), // deep red
-                          Color(0xFFFF2871), // pink
-                        ],
-                      ),
+            return SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: MediaQuery.sizeOf(context).height * 0.38,
                     ),
-                    child: SafeArea(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/imgs/kinetic.png',
-                            height: 180,
-                            // Tint PNG to white to match header
-                            color: Colors.white,
-                            colorBlendMode: BlendMode.srcIn,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            easy_localization.tr('kinetic_world_of_fun'),
-                            style: TextStyle(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: <Color>[
+                            Color(0xFFE6003A), // deep red
+                            Color(0xFFFF2871), // pink
+                          ],
+                        ),
+                      ),
+                      child: SafeArea(
+                        bottom: false,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/imgs/kinetic.png',
+                              height: 180,
                               color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
+                              colorBlendMode: BlendMode.srcIn,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            Text(
+                              easy_localization.tr('kinetic_world_of_fun'),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-
-                // Card body at bottom - extends to bottom of screen
-                Expanded(
-                  child: Transform.translate(
+                  Transform.translate(
                     offset: const Offset(0, -36),
                     child: Container(
                       width: double.infinity,
@@ -125,16 +129,17 @@ class _KineticOtpLoginScreenState extends State<KineticOtpLoginScreen> {
                           ),
                         ],
                       ),
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 32,
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        32,
+                        16,
+                        32 + bottomInset,
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
@@ -314,9 +319,8 @@ class _KineticOtpLoginScreenState extends State<KineticOtpLoginScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             );
           },
         ),

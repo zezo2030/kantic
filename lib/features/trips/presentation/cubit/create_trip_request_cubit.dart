@@ -1,43 +1,33 @@
-import 'dart:typed_data';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/create_trip_request_input.dart';
 import '../../domain/entities/trip_addon_entity.dart';
-import '../../domain/entities/trip_participants_upload_entity.dart';
-import '../../domain/entities/submit_trip_request_input.dart';
 import '../../domain/usecases/create_trip_request_usecase.dart';
-import '../../domain/usecases/submit_trip_request_usecase.dart';
-import '../../domain/usecases/upload_trip_participants_usecase.dart';
 import 'create_trip_request_state.dart';
 
 class CreateTripRequestCubit extends Cubit<CreateTripRequestState> {
   CreateTripRequestCubit({
     required this.createTripRequestUseCase,
-    required this.uploadTripParticipantsUseCase,
-    required this.submitTripRequestUseCase,
   }) : _selectedDate = DateTime.now().add(const Duration(days: 1)),
        super(CreateTripRequestState.initial());
 
   final CreateTripRequestUseCase createTripRequestUseCase;
-  final UploadTripParticipantsUseCase uploadTripParticipantsUseCase;
-  final SubmitTripRequestUseCase submitTripRequestUseCase;
 
   String? selectedBranchId;
   String schoolName = '';
-  int studentsCount = 0; // Will be set from Excel file
-  int? accompanyingAdults = 2;
   DateTime _selectedDate;
   String? preferredTime;
   int? durationHours = 2;
-  String contactPersonName = '';
-  String contactPhone = '';
-  String? contactEmail;
   String? specialRequirements;
   String? paymentMethod;
-  Uint8List? participantsFileBytes;
-  String? participantsFileName;
+  /// `full` or `deposit` — required by API.
+  String paymentOption = 'full';
   final List<TripAddOnEntity> _addOns = [];
+
+  int minimumStudentsForCreate = 35;
+  int studentsCount = 35;
+  double ticketPricePerStudent = 45;
+  double depositPercent = 20;
 
   DateTime get preferredDate => _selectedDate;
   List<TripAddOnEntity> get addOns => List.unmodifiable(_addOns);
@@ -46,9 +36,10 @@ class CreateTripRequestCubit extends Cubit<CreateTripRequestState> {
       selectedBranchId != null &&
       selectedBranchId!.isNotEmpty &&
       schoolName.isNotEmpty &&
-      contactPersonName.isNotEmpty &&
-      contactPhone.length >= 8 &&
-      participantsFileBytes != null;
+      preferredTime != null &&
+      preferredTime!.isNotEmpty &&
+      minimumStudentsForCreate > 0 &&
+      studentsCount >= minimumStudentsForCreate;
 
   void updateSelectedBranchId(String? value) {
     selectedBranchId = value;
@@ -60,10 +51,6 @@ class CreateTripRequestCubit extends Cubit<CreateTripRequestState> {
 
   void updateStudentsCount(int value) {
     studentsCount = value;
-  }
-
-  void updateAccompanyingAdults(int? value) {
-    accompanyingAdults = value;
   }
 
   void updatePreferredDate(DateTime value) {
@@ -78,24 +65,45 @@ class CreateTripRequestCubit extends Cubit<CreateTripRequestState> {
     durationHours = value;
   }
 
-  void updateContactPersonName(String value) {
-    contactPersonName = value;
-  }
-
-  void updateContactPhone(String value) {
-    contactPhone = value;
-  }
-
-  void updateContactEmail(String? value) {
-    contactEmail = value;
-  }
-
   void updateSpecialRequirements(String? value) {
     specialRequirements = value;
   }
 
   void updatePaymentMethod(String? value) {
     paymentMethod = value;
+  }
+
+  void updatePaymentOption(String value) {
+    paymentOption = value == 'deposit' ? 'deposit' : 'full';
+  }
+
+  void applyTripConfig(Map<String, dynamic> cfg) {
+    final m = cfg['minimumStudents'];
+    if (m is int) {
+      minimumStudentsForCreate = m;
+    } else if (m is num) {
+      minimumStudentsForCreate = m.toInt();
+    }
+    if (studentsCount < minimumStudentsForCreate) {
+      studentsCount = minimumStudentsForCreate;
+    }
+
+    final dynamic ticketPriceRaw =
+        cfg['pricePerStudent'] ?? cfg['ticketPrice'] ?? cfg['studentTicketPrice'];
+    if (ticketPriceRaw is num) {
+      ticketPricePerStudent = ticketPriceRaw.toDouble();
+    } else if (ticketPriceRaw is String) {
+      ticketPricePerStudent =
+          double.tryParse(ticketPriceRaw) ?? ticketPricePerStudent;
+    }
+
+    final dynamic depositRaw =
+        cfg['depositPercent'] ?? cfg['depositPercentage'] ?? cfg['downPaymentPercent'];
+    if (depositRaw is num) {
+      depositPercent = depositRaw.toDouble();
+    } else if (depositRaw is String) {
+      depositPercent = double.tryParse(depositRaw) ?? depositPercent;
+    }
   }
 
   void addAddon(TripAddOnEntity addon) {
@@ -107,17 +115,12 @@ class CreateTripRequestCubit extends Cubit<CreateTripRequestState> {
     _addOns.removeWhere((addon) => addon.id == addonId);
   }
 
-  void updateParticipantsFile(Uint8List bytes, String fileName) {
-    participantsFileBytes = bytes;
-    participantsFileName = fileName;
-  }
-
   Future<void> submit() async {
     if (!isValidBasicInfo) {
       emit(
         state.copyWith(
           errorMessage:
-              'يرجى إكمال بيانات المدرسة ومعلومات التواصل واختيار الفرع ورفع ملف الطلاب.',
+              'يرجى إكمال اسم المدرسة واختيار الفرع والموعد، والتأكد من تحميل إعدادات الرحلة.',
         ),
       );
       return;
@@ -129,41 +132,17 @@ class CreateTripRequestCubit extends Cubit<CreateTripRequestState> {
       final input = CreateTripRequestInput(
         branchId: selectedBranchId,
         schoolName: schoolName,
-        studentsCount: studentsCount > 0
-            ? studentsCount
-            : null, // Optional, will be set from Excel
-        accompanyingAdults: accompanyingAdults,
+        studentsCount: studentsCount,
         preferredDate: _selectedDate,
         preferredTime: preferredTime,
         durationHours: durationHours,
-        contactPersonName: contactPersonName,
-        contactPhone: contactPhone,
-        contactEmail: contactEmail,
         specialRequirements: specialRequirements,
         addOns: _addOns,
         paymentMethod: paymentMethod,
+        paymentOption: paymentOption,
       );
 
-      // 1. Create Request
       final requestId = await createTripRequestUseCase(input);
-
-      // 2. Upload Participants Document File
-      if (participantsFileBytes != null && participantsFileName != null) {
-        final count = await uploadTripParticipantsUseCase(
-          requestId: requestId,
-          upload: TripParticipantsUploadEntity(
-            bytes: participantsFileBytes!,
-            filename: participantsFileName!,
-          ),
-        );
-        studentsCount = count;
-      }
-
-      // 3. Submit Request to Under Review
-      await submitTripRequestUseCase(
-        requestId: requestId,
-        input: const SubmitTripRequestInput(),
-      );
 
       emit(state.copyWith(isSubmitting: false, requestId: requestId));
     } catch (e) {

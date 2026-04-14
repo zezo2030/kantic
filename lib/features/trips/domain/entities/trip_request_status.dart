@@ -2,6 +2,7 @@ enum TripRequestStatus {
   pending('pending'),
   underReview('under_review'),
   approved('approved'),
+  depositPaid('deposit_paid'),
   rejected('rejected'),
   invoiced('invoiced'),
   paid('paid'),
@@ -18,8 +19,13 @@ enum TripRequestStatus {
 
   static TripRequestStatus fromApi(String? value) {
     if (value == null) return TripRequestStatus.unknown;
+    final normalized = value.toLowerCase();
+    // Some trip payment responses use this label; persisted status is usually `paid`.
+    if (normalized == 'paid_and_completed') {
+      return TripRequestStatus.paid;
+    }
     for (final status in TripRequestStatus.values) {
-      if (status.apiValue == value) return status;
+      if (status.apiValue == normalized) return status;
     }
     return TripRequestStatus.unknown;
   }

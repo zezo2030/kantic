@@ -54,11 +54,16 @@ class EventRequestCreated extends EventRequestState {
 
 class EventRequestCreateError extends EventRequestState {
   final String message;
+  /// When the API rejects create because a quoted request awaits payment for this branch.
+  final String? redirectToRequestId;
 
-  const EventRequestCreateError({required this.message});
+  const EventRequestCreateError({
+    required this.message,
+    this.redirectToRequestId,
+  });
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, redirectToRequestId];
 }
 
 // Detail States

@@ -8,6 +8,12 @@ import '../models/submit_trip_request_model.dart';
 abstract class TripsRemoteDataSource {
   Future<String> createTripRequest(CreateTripRequestModel request);
 
+  /// GET /trips/config — add-ons, time slots, minimum students.
+  Future<Map<String, dynamic>> getTripConfig({
+    String? branchId,
+    String? preferredDate,
+  });
+
   Future<SchoolTripRequestModel> getTripRequest(String requestId);
 
   Future<List<SchoolTripRequestModel>> getMyTripRequests({
@@ -40,6 +46,33 @@ class TripsRemoteDataSourceImpl implements TripsRemoteDataSource {
   final Dio dio;
 
   TripsRemoteDataSourceImpl({required this.dio});
+
+  @override
+  Future<Map<String, dynamic>> getTripConfig({
+    String? branchId,
+    String? preferredDate,
+  }) async {
+    final params = <String, dynamic>{};
+    if (branchId != null && branchId.isNotEmpty) {
+      params['branchId'] = branchId;
+    }
+    if (preferredDate != null && preferredDate.isNotEmpty) {
+      params['preferredDate'] = preferredDate;
+    }
+
+    final response = await dio.get(
+      '${ApiConstants.baseUrl}${ApiConstants.tripsConfigEndpoint}',
+      queryParameters: params.isEmpty ? null : params,
+    );
+
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      final nested = data['data'];
+      if (nested is Map<String, dynamic>) return nested;
+      return data;
+    }
+    return <String, dynamic>{};
+  }
 
   @override
   Future<String> createTripRequest(CreateTripRequestModel request) async {

@@ -126,7 +126,7 @@ class HomeScreen extends StatelessWidget {
                               .toList(),
                           onViewAll: () {
                             // الانتقال لتبويب الفروع/التصنيفات
-                            context.read<MainNavigationCubit>().changeTab(2);
+                            context.read<MainNavigationCubit>().changeTab(1);
                           },
                         ),
                       ),
@@ -147,7 +147,7 @@ class HomeScreen extends StatelessWidget {
                             branches: nearbySource,
                             onViewAll: () {
                               // الانتقال لتبويب الفروع/التصنيفات
-                              context.read<MainNavigationCubit>().changeTab(2);
+                              context.read<MainNavigationCubit>().changeTab(1);
                             },
                           );
                         },

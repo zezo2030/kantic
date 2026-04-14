@@ -46,12 +46,21 @@ class PaymentIntentResponseModel {
   final String paymentId;
   final String chargeId;
   final String? redirectUrl;
+  /// Payable amount in major units (e.g. SAR), from backend — must match Moyasar charge for confirm.
+  final double? amount;
 
   PaymentIntentResponseModel({
     required this.paymentId,
     required this.chargeId,
     this.redirectUrl,
+    this.amount,
   });
+
+  static double? _parseAmount(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
 
   factory PaymentIntentResponseModel.fromJson(Map<String, dynamic> json) {
     // API may wrap data with { data: {...} }
@@ -60,12 +69,15 @@ class PaymentIntentResponseModel {
         : json;
     return PaymentIntentResponseModel(
       paymentId: data['paymentId']?.toString() ?? data['id']?.toString() ?? '',
-      chargeId:
-          data['chargeId']?.toString() ?? data['gatewayRef']?.toString() ?? '',
+      chargeId: data['chargeId']?.toString() ??
+          data['gatewayRef']?.toString() ??
+          data['clientSecret']?.toString() ??
+          '',
       redirectUrl:
           data['redirectUrl']?.toString() ??
           data['redirect_url']?.toString() ??
           data['url']?.toString(),
+      amount: _parseAmount(data['amount']),
     );
   }
 }
@@ -101,8 +113,11 @@ class ConfirmPaymentRequestModel {
     if (offerBookingId != null && offerBookingId!.isNotEmpty)
       'offerBookingId': offerBookingId,
     'paymentId': paymentId,
-    // backend لا يعتمد على payload الآن؛ نرسل chargeId اختيارياً
-    if (chargeId != null) 'gatewayPayload': {'chargeId': chargeId},
+    if (chargeId != null && chargeId!.trim().isNotEmpty)
+      'gatewayPayload': {
+        'moyasarPaymentId': chargeId,
+        'paymentId': chargeId,
+      },
   };
 }
 

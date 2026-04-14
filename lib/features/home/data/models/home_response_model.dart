@@ -5,6 +5,7 @@ import 'offer_model.dart';
 import 'branch_model.dart';
 import 'activity_model.dart';
 import 'organizing_branch_model.dart';
+import 'intro_video_model.dart';
 
 part 'home_response_model.g.dart';
 
@@ -15,6 +16,7 @@ class HomeResponseModel {
   final List<BranchModel> featuredBranches;
   final List<ActivityModel> activities;
   final List<OrganizingBranchModel> organizingBranches;
+  final IntroVideoModel? introVideo;
 
   const HomeResponseModel({
     required this.banners,
@@ -22,6 +24,7 @@ class HomeResponseModel {
     required this.featuredBranches,
     required this.activities,
     required this.organizingBranches,
+    this.introVideo,
   });
 
   factory HomeResponseModel.fromJson(Map<String, dynamic> json) =>
@@ -36,6 +39,9 @@ class HomeResponseModel {
       featuredBranches: entity.featuredBranches.map((e) => BranchModel.fromEntity(e)).toList(),
       activities: entity.activities.map((e) => ActivityModel.fromEntity(e)).toList(),
       organizingBranches: entity.organizingBranches.map((e) => OrganizingBranchModel.fromEntity(e)).toList(),
+      introVideo: entity.introVideo == null
+          ? null
+          : IntroVideoModel.fromEntity(entity.introVideo!),
     );
   }
 
@@ -46,6 +52,7 @@ class HomeResponseModel {
       featuredBranches: featuredBranches.map((e) => e.toEntity()).toList(),
       activities: activities.map((e) => e.toEntity()).toList(),
       organizingBranches: organizingBranches.map((e) => e.toEntity()).toList(),
+      introVideo: introVideo?.toEntity(),
     );
   }
 }

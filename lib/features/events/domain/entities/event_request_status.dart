@@ -5,6 +5,7 @@ enum EventRequestStatus {
   underReview,
   quoted,
   invoiced,
+  depositPaid,
   paid,
   confirmed,
   rejected;
@@ -21,8 +22,11 @@ enum EventRequestStatus {
         return EventRequestStatus.quoted;
       case 'invoiced':
         return EventRequestStatus.invoiced;
+      case 'deposit_paid':
+        return EventRequestStatus.depositPaid;
       case 'paid':
         return EventRequestStatus.paid;
+      case 'paid_and_completed':
       case 'confirmed':
         return EventRequestStatus.confirmed;
       case 'rejected':
@@ -44,6 +48,8 @@ enum EventRequestStatus {
         return 'quoted';
       case EventRequestStatus.invoiced:
         return 'invoiced';
+      case EventRequestStatus.depositPaid:
+        return 'deposit_paid';
       case EventRequestStatus.paid:
         return 'paid';
       case EventRequestStatus.confirmed:
@@ -65,6 +71,8 @@ enum EventRequestStatus {
         return 'تم التسعير';
       case EventRequestStatus.invoiced:
         return 'تم إصدار الفاتورة';
+      case EventRequestStatus.depositPaid:
+        return 'تم دفع العربون';
       case EventRequestStatus.paid:
         return 'تم الدفع';
       case EventRequestStatus.confirmed:
@@ -74,4 +82,3 @@ enum EventRequestStatus {
     }
   }
 }
-

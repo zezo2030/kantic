@@ -15,7 +15,9 @@ import 'branches_with_offers_page.dart';
 import '../../../branches/presentation/cubit/branches_cubit.dart';
 import '../../../branches/presentation/cubit/branches_state.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/url_utils.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
+import '../widgets/home_intro_video_banner.dart';
 
 /// Redesigned Home content view without scaffold
 /// Integrates seamlessly with the modernized HomeHeaderWidget.
@@ -47,19 +49,27 @@ class HomeContentView extends StatelessWidget {
                   // Top spacing after header matching the curve layout
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-                  // Wanasa Banner - Modernized with padding, shadow, and rounded corners
-                  SliverToBoxAdapter(
-                    child: ClipRRect(
-                      child: Image.asset(
-                        'assets/imgs/wanasa.png',
-                        width: double.infinity,
-                        height: 50,
-                        fit: BoxFit.cover,
+                  // Intro video from dashboard (replaces static wanasa strip)
+                  if (state.data.introVideo != null &&
+                      state.data.introVideo!.videoUrl.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Builder(
+                        builder: (context) {
+                          final intro = state.data.introVideo!;
+                          final rawCover = intro.videoCoverUrl;
+                          return HomeIntroVideoBanner(
+                            videoUrl: resolveFileUrl(intro.videoUrl),
+                            coverUrl: rawCover != null && rawCover.isNotEmpty
+                                ? resolveFileUrl(rawCover)
+                                : null,
+                          );
+                        },
                       ),
                     ),
-                  ),
 
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  if (state.data.introVideo != null &&
+                      state.data.introVideo!.videoUrl.isNotEmpty)
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
                   // Banner Carousel
                   if (state.data.banners.isNotEmpty)
@@ -147,7 +157,7 @@ class HomeContentView extends StatelessWidget {
                           branches: nearbySource,
                           onViewAll: () {
                             try {
-                              context.read<MainNavigationCubit>().changeTab(2);
+                              context.read<MainNavigationCubit>().changeTab(1);
                             } catch (e) {}
                           },
                         );

@@ -13,8 +13,6 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../features/auth/presentation/cubit/auth_state.dart';
-import '../../features/booking/presentation/pages/booking_wizard_page.dart';
-import '../../features/bookings/presentation/my_bookings_page.dart';
 import '../../features/home/presentation/pages/branch_details_page.dart';
 import '../../features/main/presentation/screens/main_screen.dart';
 import '../../features/trips/domain/entities/school_trip_request_entity.dart';
@@ -25,11 +23,10 @@ import '../../features/notifications/presentation/pages/notifications_page.dart'
 import '../../features/payments/presentation/pages/payment_success_page.dart';
 import '../../features/subscriptions/presentation/pages/my_subscriptions_page.dart';
 import '../../features/subscriptions/presentation/pages/subscription_details_page.dart';
-import '../../features/subscriptions/presentation/pages/subscription_plans_page.dart';
 import '../../features/offer_products/presentation/pages/my_offer_bookings_page.dart';
 import '../../features/offer_products/presentation/pages/offer_booking_details_page.dart';
-import '../../features/offer_products/presentation/pages/offer_products_page.dart';
 import '../../features/home/presentation/pages/offers_landing_page.dart';
+import '../../features/loyalty/presentation/screens/loyalty_screen.dart';
 
 class AppRoutes {
   static const welcome = '/welcome';
@@ -43,8 +40,6 @@ class AppRoutes {
   static const profile = '/profile';
   static const main = '/main';
   static const branchDetails = '/branch-details';
-  static const myBookings = '/my-bookings';
-  static const hallBookingWizard = '/hall-booking-wizard';
   static const schoolTrips = '/school-trips';
   static const schoolTripsCreate = '/school-trips/create';
   static const schoolTripsDetails = '/school-trips/details';
@@ -53,10 +48,9 @@ class AppRoutes {
   static const offers = '/offers';
   static const mySubscriptions = '/my-subscriptions';
   static const subscriptionDetails = '/subscription-details';
-  static const subscriptionPlans = '/subscription-plans';
   static const myOfferBookings = '/my-offer-bookings';
   static const offerBookingDetails = '/offer-booking-details';
-  static const offerProducts = '/offer-products';
+  static const loyalty = '/loyalty';
 }
 
 class AppRouteGenerator {
@@ -121,20 +115,6 @@ class AppRouteGenerator {
           builder: (context) =>
               BranchDetailsPage(branchId: args?['branchId'] ?? ''),
         );
-      case AppRoutes.myBookings:
-        return _buildProtectedRoute(
-          settings: settings,
-          page: const MyBookingsPage(),
-        );
-      case AppRoutes.hallBookingWizard:
-        final args = settings.arguments as Map<String, dynamic>?;
-        return _buildProtectedRoute(
-          settings: settings,
-          page: BookingWizardPage(
-            branchId: args?['branchId'] ?? '',
-            branchName: args?['branchName'] ?? '',
-          ),
-        );
       case AppRoutes.schoolTrips:
         return MaterialPageRoute(
           builder: (context) => const TripRequestsPage(),
@@ -193,26 +173,17 @@ class AppRouteGenerator {
           settings: settings,
           page: SubscriptionDetailsPage(purchaseId: purchaseId),
         );
-      case AppRoutes.subscriptionPlans:
-        final args = settings.arguments as Map<String, dynamic>?;
-        final branchId = args?['branchId'] as String? ?? '';
-        return _buildProtectedRoute(
-          settings: settings,
-          page: SubscriptionPlansPage(branchId: branchId),
-        );
-      case AppRoutes.offerProducts:
-        final args = settings.arguments as Map<String, dynamic>?;
-        final branchId = args?['branchId'] as String? ?? '';
-        return _buildProtectedRoute(
-          settings: settings,
-          page: OfferProductsPage(branchId: branchId),
-        );
       case AppRoutes.offerBookingDetails:
         final args = settings.arguments as Map<String, dynamic>?;
         final bookingId = args?['bookingId'] as String? ?? '';
         return _buildProtectedRoute(
           settings: settings,
           page: OfferBookingDetailsPage(bookingId: bookingId),
+        );
+      case AppRoutes.loyalty:
+        return _buildProtectedRoute(
+          settings: settings,
+          page: const LoyaltyScreen(),
         );
       default:
         return MaterialPageRoute(builder: (context) => const WelcomeScreen());
@@ -273,9 +244,7 @@ PageRoute<dynamic> _buildProtectedRoute({
             ),
           );
         });
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
       return page;
     },

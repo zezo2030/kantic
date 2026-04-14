@@ -12,11 +12,19 @@ abstract class WalletRemoteDataSource {
     int page = 1,
     int pageSize = 20,
   });
-  Future<Map<String, dynamic>> redeemPoints({required int points});
+  Future<Map<String, dynamic>> rechargeWallet({
+    required double amount,
+  });
+
+  Future<bool> confirmRechargePayment({
+    required String paymentId,
+    required String moyasarPaymentId,
+  });
 }
 
 class WalletRemoteDataSourceImpl implements WalletRemoteDataSource {
   final Dio dio;
+  static const String _walletRechargeMethod = 'credit_card';
 
   WalletRemoteDataSourceImpl({required this.dio});
 
@@ -83,18 +91,54 @@ class WalletRemoteDataSourceImpl implements WalletRemoteDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> redeemPoints({required int points}) async {
+  Future<Map<String, dynamic>> rechargeWallet({
+    required double amount,
+  }) async {
     try {
       final response = await dio.post(
-        '${ApiConstants.baseUrl}${ApiConstants.loyaltyRedeemEndpoint}',
-        data: {'points': points},
+        '${ApiConstants.baseUrl}${ApiConstants.walletRechargeEndpoint}',
+        // Backend requires `method` and wallet recharge should use Moyasar card flow.
+        data: {'amount': amount, 'method': _walletRechargeMethod},
       );
 
       if (response.data == null) {
-        throw Exception('Redeem points response data is null');
+        throw Exception('Recharge wallet response data is null');
       }
 
       return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    } catch (e) {
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  @override
+  Future<bool> confirmRechargePayment({
+    required String paymentId,
+    required String moyasarPaymentId,
+  }) async {
+    try {
+      final response = await dio.post(
+        '${ApiConstants.baseUrl}/payments/confirm',
+        data: {
+          'paymentId': paymentId,
+          'gatewayPayload': {
+            'moyasarPaymentId': moyasarPaymentId,
+            'paymentId': moyasarPaymentId,
+          },
+        },
+      );
+
+      if (response.data == null) {
+        throw Exception('Confirm recharge response data is null');
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      final directSuccess = data['success'] == true;
+      final wrappedSuccess =
+          data['data'] is Map<String, dynamic> && data['data']['success'] == true;
+      return directSuccess || wrappedSuccess;
     } on DioException catch (e) {
       throw _handleDioException(e);
     } catch (e) {

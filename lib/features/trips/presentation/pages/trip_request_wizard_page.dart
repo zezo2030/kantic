@@ -1,26 +1,35 @@
-import 'dart:typed_data';
-
 import 'package:easy_localization/easy_localization.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/constants/api_constants.dart';
 
-import '../../../booking/presentation/widgets/duration_selector.dart';
-import '../../../booking/presentation/widgets/slot_selector.dart';
-import '../../../booking/domain/entities/time_slot_entity.dart';
-import '../../../booking/presentation/cubit/booking_cubit.dart';
-import '../../../booking/presentation/cubit/booking_state.dart';
-import '../../../booking/di/booking_injection.dart' as booking_di;
 import '../../di/trips_injection.dart' as trips_di;
+import '../../domain/repositories/trips_repository.dart';
 import '../../domain/entities/trip_addon_entity.dart';
 import '../cubit/create_trip_request_cubit.dart';
 import '../cubit/create_trip_request_state.dart';
+
+int _durationHoursFromTripSlotLabel(String slot) {
+  try {
+    final parts = slot.split('-');
+    if (parts.length != 2) return 2;
+    final s = parts[0].trim().split(':');
+    final e = parts[1].trim().split(':');
+    final sh = int.parse(s[0]);
+    final sm = int.parse(s.length > 1 ? s[1] : '0');
+    final eh = int.parse(e[0]);
+    final em = int.parse(e.length > 1 ? e[1] : '0');
+    final minutes = eh * 60 + em - (sh * 60 + sm);
+    final h = (minutes / 60).ceil();
+    return h.clamp(1, 24);
+  } catch (_) {
+    return 2;
+  }
+}
 
 class TripRequestWizardPage extends StatefulWidget {
   final String? branchId;
@@ -32,57 +41,46 @@ class TripRequestWizardPage extends StatefulWidget {
 }
 
 class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
-  // Current step (0-3)
   int _currentStep = 0;
   final int _totalSteps = 4;
 
   late final CreateTripRequestCubit _cubit;
-  late final BookingCubit _bookingCubit; // For slot fetching
   final _formKey = GlobalKey<FormState>();
   final _schoolNameController = TextEditingController();
-  final _contactPersonController = TextEditingController();
-  final _contactPhoneController = TextEditingController();
-  final _contactEmailController = TextEditingController();
   final _specialRequestController = TextEditingController();
+  final _studentsCountController = TextEditingController();
 
   // Branch selection state
   List<Map<String, dynamic>> availableBranches = [];
   bool isLoadingBranches = false;
   String? branchesError;
 
-  // Slot-related state
-  List<TimeSlotEntity> availableSlots = [];
-  TimeSlotEntity? selectedSlot;
-  bool isLoadingSlots = false;
-  String? slotsError;
-  int slotMinutes = 60;
+  // School trip slots from GET /trips/config
+  List<String> tripTimeSlots = [];
+  String? selectedTripSlotLabel;
+  bool tripConfigLoading = false;
+  String? tripConfigError;
+  Map<String, dynamic> tripConfig = {};
+  final Map<String, int> tripAddonQtyById = {};
 
   @override
   void initState() {
     super.initState();
     _cubit = trips_di.sl<CreateTripRequestCubit>();
-    _bookingCubit = booking_di.sl(); // Get booking cubit for slot fetching
+    _studentsCountController.text = _cubit.studentsCount.toString();
     _loadBranches(); // Load available branches
 
-    // If branchId is provided, set it immediately and fetch slots
     if (widget.branchId != null) {
       _cubit.updateSelectedBranchId(widget.branchId!);
-      // Fetch slots after the widget is built
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _fetchSlotsForDate();
-      });
     }
   }
 
   @override
   void dispose() {
     _cubit.close();
-    _bookingCubit.close();
     _schoolNameController.dispose();
-    _contactPersonController.dispose();
-    _contactPhoneController.dispose();
-    _contactEmailController.dispose();
     _specialRequestController.dispose();
+    _studentsCountController.dispose();
     super.dispose();
   }
 
@@ -133,51 +131,151 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
     }
   }
 
-  void _fetchSlotsForDate() {
-    final date = _cubit.preferredDate;
+  Future<void> _fetchTripConfig() async {
     final branchId = _cubit.selectedBranchId;
-
-    // Only fetch slots if we have both date and selected branch
     if (branchId == null || branchId.isEmpty) {
       setState(() {
-        availableSlots = [];
-        slotsError = null;
-        selectedSlot = null;
+        tripTimeSlots = [];
+        tripConfigError = null;
+        selectedTripSlotLabel = null;
       });
       return;
     }
 
-    final normalizedDate = DateTime(date.year, date.month, date.day);
-    // Use default value for persons since studentsCount will be set from Excel
-    _bookingCubit.fetchBranchSlots(
-      branchId: branchId,
-      date: normalizedDate,
-      durationHours: _cubit.durationHours ?? 2,
-      persons: _cubit.studentsCount > 0
-          ? _cubit.studentsCount
-          : 1, // Default to 1 if not set
-    );
+    final d = _cubit.preferredDate;
+    final dateStr =
+        '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    setState(() {
+      tripConfigLoading = true;
+      tripConfigError = null;
+    });
+
+    try {
+      final repo = trips_di.sl<TripsRepository>();
+      final cfg = await repo.getTripConfig(
+        branchId: branchId,
+        preferredDate: dateStr,
+      );
+      if (!mounted) return;
+      _cubit.applyTripConfig(cfg);
+      _studentsCountController.text = _cubit.studentsCount.toString();
+      final slots = cfg['timeSlots'];
+      final list = slots is List
+          ? slots.map((e) => e.toString()).toList()
+          : <String>[];
+      setState(() {
+        tripConfig = cfg;
+        tripTimeSlots = list;
+        tripConfigLoading = false;
+        if (selectedTripSlotLabel != null &&
+            !tripTimeSlots.contains(selectedTripSlotLabel)) {
+          selectedTripSlotLabel = null;
+          _cubit.updatePreferredTime(null);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        tripConfigLoading = false;
+        tripConfigError = e.toString();
+        tripTimeSlots = [];
+      });
+    }
   }
 
-  void _onSlotSelected(TimeSlotEntity slot) {
+  void _onTripSlotSelected(String label) {
     setState(() {
-      selectedSlot = slot;
-      _cubit.updatePreferredTime(
-        '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}',
-      );
+      selectedTripSlotLabel = label;
     });
+    _cubit.updatePreferredTime(label);
+    _cubit.updateDurationHours(_durationHoursFromTripSlotLabel(label));
   }
+
+  List<Map<String, dynamic>> get _tripAddonCatalog {
+    final raw = tripConfig['addOns'];
+    if (raw is! List) return [];
+    return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  void _bumpTripAddonQuantity(String id, int delta) {
+    final cur = tripAddonQtyById[id] ?? 0;
+    final next = (cur + delta).clamp(0, 99);
+    setState(() {
+      if (next <= 0) {
+        tripAddonQtyById.remove(id);
+      } else {
+        tripAddonQtyById[id] = next;
+      }
+    });
+    _syncTripAddonsFromUi();
+  }
+
+  void _syncTripAddonsFromUi() {
+    for (final item in _tripAddonCatalog) {
+      final id = item['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      _cubit.removeAddon(id);
+    }
+    for (final item in _tripAddonCatalog) {
+      final id = item['id']?.toString() ?? '';
+      final qty = tripAddonQtyById[id] ?? 0;
+      if (qty <= 0 || id.isEmpty) continue;
+      final name = item['name']?.toString() ?? '';
+      final priceVal = item['price'];
+      final price = priceVal is int
+          ? priceVal
+          : (priceVal is num
+              ? priceVal.toInt()
+              : int.tryParse(priceVal?.toString() ?? '0') ?? 0);
+      _cubit.addAddon(
+        TripAddOnEntity(id: id, name: name, price: price, quantity: qty),
+      );
+    }
+  }
+
+  double _addonsTotal() {
+    double total = 0;
+    for (final item in _tripAddonCatalog) {
+      final id = item['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      final qty = tripAddonQtyById[id] ?? 0;
+      if (qty <= 0) continue;
+      final priceVal = item['price'];
+      final price = priceVal is num
+          ? priceVal.toDouble()
+          : double.tryParse(priceVal?.toString() ?? '0') ?? 0;
+      total += price * qty;
+    }
+    return total;
+  }
+
+  double _ticketsTotal() {
+    return _cubit.studentsCount * _cubit.ticketPricePerStudent;
+  }
+
+  double _grandTotal() {
+    return _ticketsTotal() + _addonsTotal();
+  }
+
+  double _depositAmount() {
+    return _grandTotal() * (_cubit.depositPercent / 100);
+  }
+
+  String _money(double value) => value.toStringAsFixed(2);
 
   bool _canProceedFromStep(int step) {
     switch (step) {
-      case 0: // School info - only basic validation needed to proceed
-        return _cubit.schoolName.isNotEmpty;
-      case 1: // Branch
-        return _cubit.selectedBranchId != null &&
+      case 0: // School info & Branch
+        return _cubit.schoolName.isNotEmpty &&
+            _cubit.selectedBranchId != null &&
             _cubit.selectedBranchId!.isNotEmpty;
-      case 2: // Date, Time & Duration
-        return selectedSlot != null;
-      case 3: // Contact & Review - can always proceed if reached
+      case 1: // Schedule & Addons
+        return selectedTripSlotLabel != null && 
+               _cubit.studentsCount >= _cubit.minimumStudentsForCreate;
+      case 2: // Payment & Notes
+        return _cubit.paymentOption.isNotEmpty;
+      case 3: // Summary
         return true;
       default:
         return false;
@@ -185,16 +283,12 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
   }
 
   bool _isAllDataComplete() {
-    final isComplete =
-        _cubit.schoolName.isNotEmpty &&
+    return _cubit.schoolName.isNotEmpty &&
         _cubit.selectedBranchId != null &&
         _cubit.selectedBranchId!.isNotEmpty &&
-        selectedSlot != null &&
-        _cubit.contactPersonName.isNotEmpty &&
-        _cubit.contactPhone.length >= 8 &&
-        _cubit.participantsFileBytes != null;
-
-    return isComplete;
+        selectedTripSlotLabel != null &&
+        _cubit.studentsCount >= _cubit.minimumStudentsForCreate &&
+        !tripConfigLoading;
   }
 
   void _nextStep() {
@@ -202,14 +296,12 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
       final fromStep = _currentStep;
       setState(() => _currentStep++);
 
-      // When moving from Branch selection (step 1) to Date/Time (step 2),
-      // automatically fetch slots for the selected branch
-      if (fromStep == 1 && _currentStep == 2) {
+      if (fromStep == 0 && _currentStep == 1) {
         if (_cubit.selectedBranchId != null &&
             _cubit.selectedBranchId!.isNotEmpty &&
-            availableSlots.isEmpty &&
-            !isLoadingSlots) {
-          _fetchSlotsForDate();
+            tripTimeSlots.isEmpty &&
+            !tripConfigLoading) {
+          _fetchTripConfig();
         }
       }
     } else {
@@ -229,11 +321,11 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
       case 0:
         return 'school_info'.tr();
       case 1:
-        return 'branch_selection'.tr();
+        return 'trip_schedule'.tr();
       case 2:
-        return 'booking_step_date_time'.tr();
+        return 'trip_payment_option'.tr();
       case 3:
-        return 'contact_addons_review'.tr();
+        return 'trip_summary'.tr();
       default:
         return '';
     }
@@ -341,13 +433,31 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
   Widget _buildStepContent() {
     switch (_currentStep) {
       case 0:
-        return _buildStep0SchoolInfo();
+        return Column(
+          children: [
+            _buildStep0SchoolInfo(),
+            const SizedBox(height: 16),
+            _buildStep1BranchHall(),
+          ],
+        );
       case 1:
-        return _buildStep1BranchHall();
+        return Column(
+          children: [
+            _buildScheduleSection(context),
+            const SizedBox(height: 16),
+            _buildAddOnsSection(context),
+          ],
+        );
       case 2:
-        return _buildStep2DateTime();
+        return Column(
+          children: [
+            _buildTripPaymentSection(context),
+            const SizedBox(height: 16),
+            _buildNotesSection(context),
+          ],
+        );
       case 3:
-        return _buildStep3ContactReview();
+        return _buildTripSummary();
       default:
         return const SizedBox.shrink();
     }
@@ -355,11 +465,8 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider.value(value: _cubit),
-        BlocProvider.value(value: _bookingCubit),
-      ],
+    return BlocProvider.value(
+      value: _cubit,
       child: MultiBlocListener(
         listeners: [
           BlocListener<CreateTripRequestCubit, CreateTripRequestState>(
@@ -370,41 +477,6 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
                 ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
               } else if (state.requestId != null) {
                 Navigator.pop(context, state.requestId);
-              }
-            },
-          ),
-          BlocListener<BookingCubit, BookingState>(
-            listener: (context, bookingState) {
-              // Handle booking cubit state changes for slots
-              if (bookingState is SlotsLoading) {
-                setState(() {
-                  isLoadingSlots = true;
-                  slotsError = null;
-                });
-              } else if (bookingState is SlotsLoaded) {
-                setState(() {
-                  isLoadingSlots = false;
-                  slotsError = null;
-                  slotMinutes = bookingState.branchSlots.slotMinutes;
-                  availableSlots = bookingState.branchSlots.slots;
-                });
-
-                // Auto-select first available slot if none selected
-                if (selectedSlot == null && availableSlots.isNotEmpty) {
-                  final availableSlotsList = availableSlots
-                      .where((slot) => slot.available)
-                      .toList();
-                  final slotToSelect = availableSlotsList.isNotEmpty
-                      ? availableSlotsList.first
-                      : availableSlots.first;
-                  _onSlotSelected(slotToSelect);
-                }
-              } else if (bookingState is SlotsError) {
-                setState(() {
-                  isLoadingSlots = false;
-                  slotsError = bookingState.message;
-                  availableSlots = [];
-                });
               }
             },
           ),
@@ -485,10 +557,6 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
     final canProceed = _canProceedFromStep(_currentStep);
     final isLastStep = _currentStep == _totalSteps - 1;
     final canSubmit = isLastStep ? _isAllDataComplete() : canProceed;
-
-    // Debug logging for submit button state
-    if (isLastStep) {
-    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -591,44 +659,7 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
   }
 
   Widget _buildStep1BranchHall() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Branch selection
-        _buildBranchHallSection(),
-      ],
-    );
-  }
-
-  Widget _buildStep2DateTime() {
-    return _buildScheduleSection(context);
-  }
-
-  Widget _buildStep3ContactReview() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Contact info
-        _buildContactSection(context),
-        const SizedBox(height: 16),
-
-        // Add-ons
-        _buildAddOnsSection(context),
-        const SizedBox(height: 16),
-
-        // Notes
-        _buildNotesSection(context),
-        const SizedBox(height: 16),
-
-        // File Upload
-        _buildFileUploadSection(context),
-        const SizedBox(height: 16),
-
-        // Summary
-        _buildTripSummary(),
-        const SizedBox(height: 24), // Extra space at bottom
-      ],
-    );
+    return _buildBranchHallSection();
   }
 
   Widget _buildBranchHallSection() {
@@ -724,11 +755,15 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
                 onChanged: (value) {
                   _cubit.updateSelectedBranchId(value);
                   if (value != null && value.isNotEmpty) {
-                    _fetchSlotsForDate();
+                    setState(() {
+                      selectedTripSlotLabel = null;
+                      _cubit.updatePreferredTime(null);
+                    });
+                    _fetchTripConfig();
                   } else {
                     setState(() {
-                      availableSlots = [];
-                      selectedSlot = null;
+                      tripTimeSlots = [];
+                      selectedTripSlotLabel = null;
                     });
                   }
                   setState(() {});
@@ -749,6 +784,11 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
   }
 
   Widget _buildTripSummary() {
+    final ticketsTotal = _ticketsTotal();
+    final addonsTotal = _addonsTotal();
+    final grandTotal = ticketsTotal + addonsTotal;
+    final depositAmount = _depositAmount();
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -798,12 +838,9 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
             if (_cubit.schoolName.isNotEmpty)
               _buildSummaryRow('school_name'.tr(), _cubit.schoolName),
 
-            // Students count - will be set from Excel file
             _buildSummaryRow(
               'students_count'.tr(),
-              _cubit.studentsCount > 0
-                  ? '${_cubit.studentsCount} ${'persons'.tr()}'
-                  : 'will_be_determined_from_excel'.tr(),
+              '${_cubit.studentsCount} ${'persons'.tr()}',
             ),
 
             // Branch
@@ -814,10 +851,10 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
               ),
 
             // Date and Time
-            if (selectedSlot != null)
+            if (selectedTripSlotLabel != null)
               _buildSummaryRow(
                 'date_time'.tr(),
-                DateFormat('yyyy/MM/dd HH:mm').format(selectedSlot!.start),
+                '${DateFormat('yyyy/MM/dd').format(_cubit.preferredDate)} · $selectedTripSlotLabel',
               ),
 
             // Duration
@@ -826,13 +863,6 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
                 'duration'.tr(),
                 '${_cubit.durationHours} ${'hours'.tr()}',
               ),
-
-            // Contact info
-            if (_cubit.contactPersonName.isNotEmpty)
-              _buildSummaryRow('contact_person'.tr(), _cubit.contactPersonName),
-
-            if (_cubit.contactPhone.isNotEmpty)
-              _buildSummaryRow('contact_phone'.tr(), _cubit.contactPhone),
 
             // Add-ons
             if (_cubit.addOns.isNotEmpty)
@@ -855,6 +885,32 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
                     ),
                   ),
                 ],
+              ),
+
+            const Divider(height: 28),
+            _buildSummaryRow(
+              'trip_price_per_student'.tr(),
+              '${_money(_cubit.ticketPricePerStudent)} ${'riyal'.tr()}',
+            ),
+            _buildSummaryRow(
+              'trip_tickets_total'.tr(),
+              '${_money(ticketsTotal)} ${'riyal'.tr()}',
+            ),
+            _buildSummaryRow(
+              'trip_addons_total'.tr(),
+              '${_money(addonsTotal)} ${'riyal'.tr()}',
+            ),
+            _buildSummaryRow(
+              'trip_grand_total'.tr(),
+              '${_money(grandTotal)} ${'riyal'.tr()}',
+            ),
+            if (_cubit.paymentOption == 'deposit')
+              _buildSummaryRow(
+                tr(
+                  'trip_deposit_with_percent',
+                  args: [_money(_cubit.depositPercent)],
+                ),
+                '${_money(depositAmount)} ${'riyal'.tr()}',
               ),
           ],
         ),
@@ -980,22 +1036,6 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
                 return null;
               },
             ),
-            const SizedBox(height: 16),
-
-            // Accompanying Adults Section
-            TextFormField(
-              initialValue: _cubit.accompanyingAdults?.toString(),
-              decoration: InputDecoration(
-                labelText: 'accompanying_adults'.tr(),
-                prefixIcon: const Icon(Icons.family_restroom_outlined),
-                hintText: 'optional'.tr(),
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (value) {
-                _cubit.updateAccompanyingAdults(int.tryParse(value));
-                setState(() {});
-              },
-            ),
           ],
         ),
       ),
@@ -1075,14 +1115,16 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
                 );
                 if (picked != null) {
                   _cubit.updatePreferredDate(picked);
-                  selectedSlot = null; // Reset selected slot when date changes
-                  // Fetch slots only if branch is also selected
+                  setState(() {
+                    selectedTripSlotLabel = null;
+                    _cubit.updatePreferredTime(null);
+                  });
                   if (_cubit.selectedBranchId != null &&
                       _cubit.selectedBranchId!.isNotEmpty) {
-                    _fetchSlotsForDate();
+                    _fetchTripConfig();
                   } else {
                     setState(() {
-                      availableSlots = [];
+                      tripTimeSlots = [];
                     });
                   }
                   setState(() {});
@@ -1090,36 +1132,133 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
               },
             ),
             const SizedBox(height: 8),
-            SlotSelector(
-              slots: availableSlots,
-              selectedSlot: selectedSlot,
-              slotMinutes: slotMinutes,
-              selectedDurationHours: _cubit.durationHours ?? 2,
-              isLoading: isLoadingSlots,
-              errorMessage: slotsError,
-              onSlotSelected: _onSlotSelected,
-            ),
-            const SizedBox(height: 16),
-            DurationSelector(
-              selectedDuration: _cubit.durationHours ?? 2,
-              maxDuration: 8,
-              onDurationChanged: (value) {
-                _cubit.updateDurationHours(value);
-                // Refetch slots if branch is selected
-                if (_cubit.selectedBranchId != null &&
-                    _cubit.selectedBranchId!.isNotEmpty) {
-                  _fetchSlotsForDate();
-                }
-                setState(() {});
-              },
-            ),
+            if (tripConfigLoading)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (tripConfigError != null)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  tripConfigError!,
+                  style: TextStyle(color: Colors.red.shade700),
+                ),
+              )
+            else if (tripTimeSlots.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  'no_slots_available_for_date'.tr(),
+                  style: TextStyle(color: Colors.orange.shade800),
+                ),
+              )
+            else ...[
+              Text(
+                'booking_step_date_time'.tr(),
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: tripTimeSlots.map((label) {
+                  final selected = selectedTripSlotLabel == label;
+                  return ChoiceChip(
+                    label: Text(label),
+                    selected: selected,
+                    onSelected: (_) => _onTripSlotSelected(label),
+                  );
+                }).toList(),
+              ),
+              if (_cubit.durationHours != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '${'duration_hours'.tr()}: ${_cubit.durationHours}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'students_count'.tr(),
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _studentsCountController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'students_count'.tr(),
+                  prefixIcon: const Icon(Iconsax.profile_2user),
+                  helperText: tr(
+                    'trip_min_students_note',
+                    args: [_cubit.minimumStudentsForCreate.toString()],
+                  ),
+                  helperStyle: const TextStyle(color: AppColors.primaryRed),
+                ),
+                onChanged: (val) {
+                  final parsed = int.tryParse(val) ?? 0;
+                  _cubit.updateStudentsCount(parsed);
+                  setState(() {});
+                },
+                validator: (val) {
+                  final parsed = int.tryParse(val ?? '') ?? 0;
+                  if (parsed < _cubit.minimumStudentsForCreate) {
+                    return tr(
+                      'trip_min_students_error',
+                      args: [_cubit.minimumStudentsForCreate.toString()],
+                    );
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryRed.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.primaryRed.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr(
+                        'trip_price_per_student_value',
+                        args: [_money(_cubit.ticketPricePerStudent)],
+                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      tr(
+                        'trip_tickets_total_value',
+                        args: [_money(_ticketsTotal())],
+                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.primaryRed,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildContactSection(BuildContext context) {
+  Widget _buildTripPaymentSection(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1138,80 +1277,44 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryRed.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Iconsax.call,
-                    color: AppColors.primaryRed,
-                    size: 22,
-                  ),
+            Text(
+              'trip_payment_option'.tr(),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            RadioListTile<String>(
+              title: Text('trip_pay_full'.tr()),
+              value: 'full',
+              groupValue: _cubit.paymentOption,
+              onChanged: (v) {
+                _cubit.updatePaymentOption(v ?? 'full');
+                setState(() {});
+              },
+            ),
+            RadioListTile<String>(
+              title: Text('trip_pay_deposit'.tr()),
+              value: 'deposit',
+              groupValue: _cubit.paymentOption,
+              onChanged: (v) {
+                _cubit.updatePaymentOption(v ?? 'deposit');
+                setState(() {});
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                tr(
+                  'trip_deposit_amount_value',
+                  args: [_money(_cubit.depositPercent), _money(_depositAmount())],
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  'contact_information'.tr(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.primaryRed,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _contactPersonController,
-              decoration: InputDecoration(
-                labelText: 'contact_person'.tr(),
-                prefixIcon: const Icon(Icons.person_outline),
               ),
-              onChanged: (value) {
-                _cubit.updateContactPersonName(value);
-                setState(() {});
-              },
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'provide_contact_person'.tr();
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _contactPhoneController,
-              decoration: InputDecoration(
-                labelText: 'contact_phone'.tr(),
-                prefixIcon: const Icon(Icons.phone_enabled_outlined),
-              ),
-              keyboardType: TextInputType.phone,
-              onChanged: (value) {
-                _cubit.updateContactPhone(value);
-                setState(() {});
-              },
-              validator: (value) {
-                if (value == null || value.trim().length < 8) {
-                  return 'provide_contact_phone'.tr();
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _contactEmailController,
-              decoration: InputDecoration(
-                labelText: 'contact_email'.tr(),
-                prefixIcon: const Icon(Icons.email_outlined),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              onChanged: (value) {
-                _cubit.updateContactEmail(value);
-                setState(() {});
-              },
             ),
           ],
         ),
@@ -1221,6 +1324,7 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
 
   Widget _buildAddOnsSection(BuildContext context) {
     final theme = Theme.of(context);
+    final catalog = _tripAddonCatalog;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1267,44 +1371,7 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
             const SizedBox(height: 12),
             Text('trip_addons_hint'.tr(), style: theme.textTheme.bodySmall),
             const SizedBox(height: 16),
-            _AddOnForm(
-              onAdd: (addon) {
-                _cubit.addAddon(addon);
-                setState(() {});
-              },
-            ),
-            const SizedBox(height: 16),
-            if (_cubit.addOns.isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'selected_addons'.tr(),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _cubit.addOns
-                        .map(
-                          (addon) => Chip(
-                            label: Text('${addon.name} ×${addon.quantity}'),
-                            deleteIcon: const Icon(Icons.close),
-                            onDeleted: () {
-                              _cubit.removeAddon(addon.id);
-                              setState(() {});
-                            },
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ],
-              )
-            else
+            if (catalog.isEmpty)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -1326,7 +1393,79 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
                     ),
                   ],
                 ),
+              )
+            else
+              ...catalog.map((item) {
+                final id = item['id']?.toString() ?? '';
+                final name = item['name']?.toString() ?? id;
+                final priceVal = item['price'];
+                final price = priceVal is int
+                    ? priceVal
+                    : (priceVal is num
+                        ? priceVal.toInt()
+                        : int.tryParse(priceVal?.toString() ?? '0') ?? 0);
+                final qty = tripAddonQtyById[id] ?? 0;
+                final itemTotal = price * qty;
+                final description = item['description']?.toString();
+                return ListTile(
+                  dense: true,
+                  title: Text('$name ($price ${'riyal'.tr()})'),
+                  subtitle: (qty > 0 ||
+                          (description != null && description.isNotEmpty))
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (description != null && description.isNotEmpty)
+                              Text(description),
+                            if (qty > 0)
+                              Text(
+                                tr(
+                                  'trip_item_total_value',
+                                  args: [_money(itemTotal.toDouble())],
+                                ),
+                              ),
+                          ],
+                        )
+                      : null,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: qty <= 0
+                            ? null
+                            : () => _bumpTripAddonQuantity(id, -1),
+                      ),
+                      Text('$qty'),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline),
+                        onPressed: id.isEmpty
+                            ? null
+                            : () => _bumpTripAddonQuantity(id, 1),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            if (catalog.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Divider(),
+              const SizedBox(height: 8),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  tr(
+                    'trip_addons_total_value',
+                    args: [_money(_addonsTotal())],
+                  ),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: AppColors.primaryRed,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
+            ],
           ],
         ),
       ),
@@ -1395,284 +1534,10 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
     );
   }
 
-  Widget _buildFileUploadSection(BuildContext context) {
-    final hasFile = _cubit.participantsFileBytes != null;
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColor.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryRed.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Iconsax.document_upload,
-                    color: AppColors.primaryRed,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'upload_participants'.tr(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (!hasFile)
-              Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.amber.shade300),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.amber.shade700,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'upload_participants_required'.tr(),
-                        style: TextStyle(
-                          color: Colors.amber.shade900,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final Uri url = Uri.parse(
-                  '${ApiConstants.baseUrl}/trips/template/download',
-                );
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                } else {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('cannot_open_link'.tr())),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.download_for_offline_outlined),
-              label: Text('download_template'.tr()),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                minimumSize: const Size(double.infinity, 0),
-              ),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: _handleFileUpload,
-              icon: Icon(
-                hasFile ? Icons.check_circle_outline : Icons.upload_file,
-              ),
-              label: Text(
-                hasFile
-                    ? 'reupload_participants'.tr()
-                    : 'upload_participants'.tr(),
-              ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                minimumSize: const Size(double.infinity, 0),
-                backgroundColor: hasFile ? Colors.green.shade50 : null,
-                foregroundColor: hasFile ? Colors.green.shade700 : null,
-              ),
-            ),
-            if (hasFile) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: Text(
-                  _cubit.participantsFileName ?? '',
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleFileUpload() async {
-    final pickResult = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['xlsx', 'xls', 'csv'],
-      withData: true,
-    );
-    if (pickResult == null || pickResult.files.isEmpty) {
-      return;
-    }
-
-    final file = pickResult.files.first;
-    final bytes = file.bytes ?? await _readFileBytes(file);
-    if (bytes == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('file_pick_failed'.tr())));
-      return;
-    }
-
-    setState(() {
-      _cubit.updateParticipantsFile(bytes, file.name);
-    });
-  }
-
-  Future<Uint8List?> _readFileBytes(PlatformFile file) async {
-    if (file.bytes != null) {
-      return file.bytes;
-    }
-    final stream = file.readStream;
-    if (stream == null) return null;
-    final builder = BytesBuilder();
-    await for (final chunk in stream) {
-      builder.add(chunk);
-    }
-    return builder.toBytes();
-  }
-
   void _submit() {
     if (_formKey.currentState?.validate() ?? false) {
+      _syncTripAddonsFromUi();
       _cubit.submit();
     }
-  }
-}
-
-class _AddOnForm extends StatefulWidget {
-  const _AddOnForm({required this.onAdd});
-
-  final ValueChanged<TripAddOnEntity> onAdd;
-
-  @override
-  State<_AddOnForm> createState() => _AddOnFormState();
-}
-
-class _AddOnFormState extends State<_AddOnForm> {
-  final _nameController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _quantityController = TextEditingController(text: '1');
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _priceController.dispose();
-    _quantityController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'addon_name'.tr(),
-                  prefixIcon: const Icon(Iconsax.category),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 120,
-              child: TextField(
-                controller: _priceController,
-                decoration: InputDecoration(
-                  labelText: 'price'.tr(),
-                  prefixIcon: const Icon(Iconsax.card),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            SizedBox(
-              width: 120,
-              child: TextField(
-                controller: _quantityController,
-                decoration: InputDecoration(
-                  labelText: 'quantity'.tr(),
-                  prefixIcon: const Icon(Iconsax.ticket),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: _addAddon,
-              icon: const Icon(Icons.add),
-              label: Text('add_addon'.tr()),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _addAddon() {
-    final name = _nameController.text.trim();
-    final price = int.tryParse(_priceController.text.trim());
-    final quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
-    if (name.isEmpty || price == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('addon_input_invalid'.tr())));
-      return;
-    }
-
-    widget.onAdd(
-      TripAddOnEntity(
-        id: '${DateTime.now().millisecondsSinceEpoch}',
-        name: name,
-        price: price,
-        quantity: quantity,
-      ),
-    );
-
-    _nameController.clear();
-    _priceController.clear();
-    _quantityController.text = '1';
   }
 }

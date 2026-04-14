@@ -23,6 +23,10 @@ HomeResponseModel _$HomeResponseModelFromJson(Map<String, dynamic> json) =>
       organizingBranches: (json['organizingBranches'] as List<dynamic>)
           .map((e) => OrganizingBranchModel.fromJson(e as Map<String, dynamic>))
           .toList(),
+      introVideo: json['introVideo'] == null
+          ? null
+          : IntroVideoModel.fromJson(
+              json['introVideo'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$HomeResponseModelToJson(HomeResponseModel instance) =>
@@ -32,4 +36,5 @@ Map<String, dynamic> _$HomeResponseModelToJson(HomeResponseModel instance) =>
       'featuredBranches': instance.featuredBranches,
       'activities': instance.activities,
       'organizingBranches': instance.organizingBranches,
+      'introVideo': instance.introVideo,
     };

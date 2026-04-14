@@ -6,16 +6,19 @@ class PaymentIntentEntity extends Equatable {
   final String chargeId;
   final String method; // e.g., CREDIT_CARD
   final String? redirectUrl;
+  /// Amount in major currency units (e.g. SAR) the server expects for this payment.
+  final double? amount;
 
   const PaymentIntentEntity({
     required this.paymentId,
     required this.chargeId,
     required this.method,
     this.redirectUrl,
+    this.amount,
   });
 
   @override
-  List<Object?> get props => [paymentId, chargeId, method, redirectUrl];
+  List<Object?> get props => [paymentId, chargeId, method, redirectUrl, amount];
 }
 
 class ConfirmPaymentResultEntity extends Equatable {

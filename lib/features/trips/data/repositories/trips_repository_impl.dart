@@ -28,6 +28,23 @@ class TripsRepositoryImpl implements TripsRepository {
   }
 
   @override
+  Future<Map<String, dynamic>> getTripConfig({
+    String? branchId,
+    String? preferredDate,
+  }) async {
+    try {
+      return await remoteDataSource.getTripConfig(
+        branchId: branchId,
+        preferredDate: preferredDate,
+      );
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    } catch (e) {
+      throw Exception('تعذر تحميل إعدادات الرحلة المدرسية: $e');
+    }
+  }
+
+  @override
   Future<SchoolTripRequestEntity> getTripRequest(String requestId) async {
     try {
       return await remoteDataSource.getTripRequest(requestId);

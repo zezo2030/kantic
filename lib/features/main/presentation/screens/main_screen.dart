@@ -5,7 +5,6 @@ import 'package:easy_localization/easy_localization.dart';
 import '../cubit/main_navigation_cubit.dart';
 import '../cubit/main_navigation_state.dart';
 import '../../../home/presentation/pages/home_tabs_page.dart';
-import 'my_activity_screen.dart';
 import 'category_screen.dart';
 import 'profile_tab_screen.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
@@ -44,7 +43,6 @@ class _MainScreenViewState extends State<MainScreenView> {
                 ? [const HomeTabsPage(), const CategoryScreen()]
                 : [
                     const HomeTabsPage(),
-                    const MyActivityScreen(),
                     const CategoryScreen(),
                     const ProfileTabScreen(),
                   ];
@@ -79,10 +77,8 @@ class _MainScreenViewState extends State<MainScreenView> {
                   case 0:
                     return 'home'.tr();
                   case 1:
-                    return 'my_bookings'.tr();
-                  case 2:
                     return 'branches'.tr();
-                  case 3:
+                  case 2:
                     return 'profile'.tr();
                   default:
                     return 'home'.tr();
@@ -95,10 +91,8 @@ class _MainScreenViewState extends State<MainScreenView> {
               child: Scaffold(
                 extendBody: true,
                 appBar:
-                    (isGuest
-                        ? safeIndex == 0
-                        : (safeIndex == 0 || safeIndex == 1))
-                    ? null // No AppBar since the pages provide their own AppBars (e.g. MyBookings gets SliverAppBar)
+                    (isGuest ? safeIndex == 0 : safeIndex == 0)
+                    ? null // Home tabs provide their own header
                     : AppBar(
                         title: Text(getCurrentTitle()),
                         centerTitle: true,
@@ -201,25 +195,18 @@ class _ModernBottomNavBar extends StatelessWidget {
                   onTap: () => onTap(0),
                 ),
                 _NavBarItem(
-                  icon: Iconsax.ticket,
-                  activeIcon: Iconsax.ticket,
-                  label: 'my_bookings'.tr(),
-                  isSelected: selectedIndex == 1,
-                  onTap: () => onTap(1),
-                ),
-                _NavBarItem(
                   icon: Iconsax.category,
                   activeIcon: Iconsax.category,
                   label: 'branches'.tr(),
-                  isSelected: selectedIndex == 2,
-                  onTap: () => onTap(2),
+                  isSelected: selectedIndex == 1,
+                  onTap: () => onTap(1),
                 ),
                 _NavBarItem(
                   icon: Iconsax.profile_circle,
                   activeIcon: Iconsax.profile_circle,
                   label: 'profile'.tr(),
-                  isSelected: selectedIndex == 3,
-                  onTap: () => onTap(3),
+                  isSelected: selectedIndex == 2,
+                  onTap: () => onTap(2),
                 ),
               ],
       ),

@@ -16,7 +16,14 @@ import 'package:url_launcher/url_launcher.dart';
 class BranchesMapPage extends StatefulWidget {
   final List<BranchEntity> branches;
 
-  const BranchesMapPage({super.key, required this.branches});
+  /// When set, map opens zoomed on this branch and shows its bottom card.
+  final String? focusBranchId;
+
+  const BranchesMapPage({
+    super.key,
+    required this.branches,
+    this.focusBranchId,
+  });
 
   @override
   State<BranchesMapPage> createState() => _BranchesMapPageState();
@@ -315,6 +322,15 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
     return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
   }
 
+  BranchEntity? _branchMatchingFocus(List<BranchEntity> branches) {
+    final id = widget.focusBranchId;
+    if (id == null || id.isEmpty) return null;
+    for (final b in branches) {
+      if (b.id == id) return b;
+    }
+    return null;
+  }
+
   void _setInitialCameraPosition(List<BranchEntity> branches) {
     if (_userPosition != null) {
       // إذا كان لدينا موقع المستخدم، استخدمه كمركز
@@ -514,8 +530,17 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
             },
             onMapCreated: (GoogleMapController controller) {
               _mapController = controller;
-              // تأخير بسيط لضمان تحميل الماركرز
-              Future.delayed(const Duration(milliseconds: 500), () {
+              Future.delayed(const Duration(milliseconds: 500), () async {
+                if (!mounted) return;
+                final focus = _branchMatchingFocus(branchesWithLocation);
+                if (focus != null) {
+                  setState(() => _selectedBranch = focus);
+                  _animateToBranch(focus);
+                  try {
+                    await controller.showMarkerInfoWindow(MarkerId(focus.id));
+                  } catch (_) {}
+                  return;
+                }
                 _setInitialCameraPosition(branchesWithLocation);
               });
             },

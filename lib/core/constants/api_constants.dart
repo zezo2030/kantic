@@ -10,10 +10,9 @@ class ApiConstants {
   // static const String baseUrl = 'http://localhost:3000/api/v1';
 
   // For physical device on same network (replace with your computer's IP):
-//   static const String baseUrl = 'https://kinetic-app-sa.org/api/v1';
+  //   static const String baseUrl = 'https://kinetic-app-sa.org/api/v1';
 
-  static void printEndpoints() {
-  }
+  static void printEndpoints() {}
 
   // Authentication Endpoints
   static const String loginEndpoint = '/auth/login';
@@ -35,9 +34,11 @@ class ApiConstants {
   // Wallet Endpoints
   static const String walletBalanceEndpoint = '/wallets/me';
   static const String walletTransactionsEndpoint = '/wallets/me/transactions';
+  static const String walletRechargeEndpoint = '/wallets/recharge';
 
-  // Loyalty Endpoints (Points -> Wallet)
-  static const String loyaltyRedeemEndpoint = '/loyalty/redeem';
+  // Loyalty Endpoints
+  static const String loyaltyMeEndpoint = '/loyalty/me';
+  static const String loyaltyRedeemTicketEndpoint = '/loyalty/redeem-ticket';
 
   // Home Endpoints
   static const String homeEndpoint = '/home';
@@ -48,7 +49,8 @@ class ApiConstants {
   static String branchSubscriptionPlans(String branchId) =>
       '/branches/$branchId/subscription-plans';
   static const String subscriptionPurchasesEndpoint = '/subscription-purchases';
-  static const String subscriptionQuoteEndpoint = '/subscription-purchases/quote';
+  static const String subscriptionQuoteEndpoint =
+      '/subscription-purchases/quote';
   static const String mySubscriptionsEndpoint = '/subscription-purchases/me';
   static String subscriptionPurchaseDetails(String id) =>
       '/subscription-purchases/$id';
@@ -69,10 +71,14 @@ class ApiConstants {
   static String paymentDetails(String paymentId) => '/payments/$paymentId';
 
   // Event Requests Endpoints
+  static const String eventsConfigEndpoint = '/events/config';
   static const String eventsRequestsEndpoint = '/events/requests';
   static const String eventsRequestsCreateEndpoint = '/events/requests';
   static String eventsRequestDetailEndpoint(String id) =>
       '/events/requests/$id';
+
+  /// School trips public config (add-ons, time slots for date).
+  static const String tripsConfigEndpoint = '/trips/config';
 
   // Notifications Endpoints
   static const String notificationsEndpoint = '/notifications';
@@ -96,4 +102,8 @@ class ApiConstants {
   // Tap Payments Configuration
   // Test Public Key - Replace with production key when ready
   static const String tapPublicKey = 'pk_test_uwXLKNceB0YZfmVD8xlITM2z';
+
+  // Moyasar publishable key used by Flutter checkout UI.
+  static const String moyasarPublishableKey =
+      'pk_test_YQE7QedoWj3Mw7xyfh44HaN1WWwRdioQoeer6foL';
 }

@@ -80,6 +80,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
       chargeId: res.chargeId,
       method: method,
       redirectUrl: res.redirectUrl,
+      amount: res.amount,
     );
   }
 

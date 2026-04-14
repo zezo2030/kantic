@@ -63,55 +63,66 @@ class WelcomeScreen extends StatelessWidget {
 
                 // Content column
                 SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 90),
-                        // Logo - Centered
-                        Center(
-                          child: Image.asset(
-                            'assets/imgs/kinetic.png',
-                            width: 160,
-                            fit: BoxFit.contain,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 90),
+                              // Logo - Centered
+                              Center(
+                                child: Image.asset(
+                                  'assets/imgs/kinetic.png',
+                                  width: 160,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+
+                              const SizedBox(height: 48),
+
+                              // Primary Login button
+                              _GradientButton(
+                                text: 'login'.tr(),
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.login,
+                                ),
+                                gradient: AppColors.primaryGradient,
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              // Register button (white with shadow)
+                              _OutlinedSoftButton(
+                                text: 'register'.tr(),
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.otpLoginKinetic,
+                                ),
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              // Continue as Guest button
+                              _OutlinedSoftButton(
+                                text: 'continue_as_guest'.tr(),
+                                onTap: () {
+                                  context.read<AuthCubit>().enterAsGuest();
+                                },
+                              ),
+
+                              const SizedBox(height: 48),
+                            ],
                           ),
                         ),
-
-                        const SizedBox(height: 48),
-
-                        // Primary Login button
-                        _GradientButton(
-                          text: 'login'.tr(),
-                          onTap: () =>
-                              Navigator.pushNamed(context, AppRoutes.login),
-                          gradient: AppColors.primaryGradient,
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Register button (white with shadow)
-                        _OutlinedSoftButton(
-                          text: 'register'.tr(),
-                          onTap: () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.otpLoginKinetic,
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Continue as Guest button
-                        _OutlinedSoftButton(
-                          text: 'continue_as_guest'.tr(),
-                          onTap: () {
-                            context.read<AuthCubit>().enterAsGuest();
-                          },
-                        ),
-
-                        const SizedBox(height: 48),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ),
               ],

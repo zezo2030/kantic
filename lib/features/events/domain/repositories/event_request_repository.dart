@@ -19,6 +19,16 @@ abstract class EventRequestRepository {
     bool decorated = false,
     List<Map<String, dynamic>>? addOns,
     String? notes,
+    required String selectedTimeSlot,
+    required bool acceptedTerms,
+    required String paymentOption,
+    String? paymentMethod,
+  });
+
+  /// GET /events/config — pricing, terms, add-ons, slot availability.
+  Future<Map<String, dynamic>> getEventConfig({
+    String? branchId,
+    String? date,
   });
 
   Future<EventRequestEntity> getRequest(String id);

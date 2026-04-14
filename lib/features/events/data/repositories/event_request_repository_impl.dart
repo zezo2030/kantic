@@ -40,22 +40,47 @@ class EventRequestRepositoryImpl implements EventRequestRepository {
     bool decorated = false,
     List<Map<String, dynamic>>? addOns,
     String? notes,
+    required String selectedTimeSlot,
+    required bool acceptedTerms,
+    required String paymentOption,
+    String? paymentMethod,
   }) async {
     try {
+      final dateStr =
+          '${startTime.year.toString().padLeft(4, '0')}-${startTime.month.toString().padLeft(2, '0')}-${startTime.day.toString().padLeft(2, '0')}';
       final request = CreateEventRequestModel(
         type: type,
         branchId: branchId,
         hallId: hallId,
-        startTime: startTime.toIso8601String(),
+        startTime: dateStr,
         durationHours: durationHours,
         persons: persons,
         decorated: decorated,
         addOns: addOns,
         notes: notes,
+        selectedTimeSlot: selectedTimeSlot,
+        acceptedTerms: acceptedTerms,
+        paymentOption: paymentOption,
+        paymentMethod: paymentMethod,
       );
 
       final eventRequestModel = await remoteDataSource.createRequest(request);
       return eventRequestModel;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getEventConfig({
+    String? branchId,
+    String? date,
+  }) async {
+    try {
+      return await remoteDataSource.getEventConfig(
+        branchId: branchId,
+        date: date,
+      );
     } catch (e) {
       rethrow;
     }

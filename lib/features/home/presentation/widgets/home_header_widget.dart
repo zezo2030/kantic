@@ -1,8 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:easy_localization/easy_localization.dart'
-    as easy_localization;
+import 'package:easy_localization/easy_localization.dart' as easy_localization;
 import 'package:iconsax/iconsax.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -49,49 +48,64 @@ class HomeHeaderWidget extends StatelessWidget {
           _buildModernShapes(screenWidth, headerHeight),
 
           SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                // Top Action Bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: headerHeight - MediaQuery.of(context).padding.top,
+                ),
+                child: IntrinsicHeight(
+                  child: Column(
                     children: [
-                      // Right side (Logo)
-                      _buildLogoSection(),
-                      // Left side (Points & Notif)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildPremiumLoyaltyPoints(),
-                          const SizedBox(width: 12),
-                          _buildPremiumNotification(context),
-                        ],
+                      const SizedBox(height: 12),
+                      // Top Action Bar
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Right side (Logo)
+                            _buildLogoSection(),
+                            // Left side (Points & Notif)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildPremiumLoyaltyPoints(),
+                                const SizedBox(width: 12),
+                                _buildPremiumNotification(context),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
+                      const Spacer(),
+                      // Title
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          easy_localization.tr('what_would_you_like_to_book_today'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Booking Options Row
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _buildBookingOptionsRow(context),
+                      ),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
-                const Spacer(),
-                // Title
-                Text(
-                  easy_localization.tr('what_would_you_like_to_book_today'),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Booking Options Row
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildBookingOptionsRow(context),
-                ),
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
           ),
         ],
@@ -176,7 +190,7 @@ class HomeHeaderWidget extends StatelessWidget {
     );
   }
 
-  /// Builds the loyalty points widget as a modern glass pill
+  /// Builds the loyalty points widget as a modern glass pill (tappable)
   Widget _buildPremiumLoyaltyPoints() {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, authState) {
@@ -191,41 +205,57 @@ class HomeHeaderWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(30),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                textDirection: TextDirection.rtl,
-                children: [
-                  SvgPicture.asset(
-                    'assets/imgs/iconloyal.svg',
-                    width: 20,
-                    height: 20,
+                onTap: () => _navigateToLoyalty(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    formattedPoints,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
                     ),
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      SvgPicture.asset(
+                        'assets/imgs/iconloyal.svg',
+                        width: 20,
+                        height: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        formattedPoints,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
         );
       },
     );
+  }
+
+  void _navigateToLoyalty(BuildContext context) {
+    final authState = context.read<AuthCubit>().state;
+    if (authState is! Authenticated) return;
+    Navigator.pushNamed(context, AppRoutes.loyalty);
   }
 
   /// Formats large numbers cleanly
@@ -266,9 +296,8 @@ class HomeHeaderWidget extends StatelessWidget {
             imagePath: 'assets/imgs/log1.png',
             onTap: () {
               try {
-                context.read<MainNavigationCubit>().changeTab(2);
-              } catch (e) {
-              }
+                context.read<MainNavigationCubit>().changeTab(1);
+              } catch (e) {}
             },
           ),
         ),

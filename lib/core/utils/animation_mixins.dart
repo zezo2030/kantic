@@ -132,10 +132,10 @@ mixin PulseAnimationMixin<T extends StatefulWidget> on State<T> {
 
 /// Mixin for Stagger animations
 mixin StaggerAnimationMixin<T extends StatefulWidget> on State<T> {
-  late AnimationController _staggerController;
-  late List<Animation<double>> _staggerAnimations;
+  AnimationController? _staggerController;
+  List<Animation<double>> _staggerAnimations = const [];
 
-  AnimationController get staggerController => _staggerController;
+  AnimationController? get staggerController => _staggerController;
   List<Animation<double>> get staggerAnimations => _staggerAnimations;
 
   void initStaggerAnimation({
@@ -143,7 +143,14 @@ mixin StaggerAnimationMixin<T extends StatefulWidget> on State<T> {
     required int itemCount,
     Duration delay = AnimationConstants.staggerDelay,
   }) {
-    _staggerController = AnimationController(
+    _staggerController?.dispose();
+    if (itemCount <= 0) {
+      _staggerController = null;
+      _staggerAnimations = const [];
+      return;
+    }
+
+    final controller = AnimationController(
       duration: Duration(
         milliseconds:
             AnimationConstants.normalDuration.inMilliseconds +
@@ -151,16 +158,18 @@ mixin StaggerAnimationMixin<T extends StatefulWidget> on State<T> {
       ),
       vsync: vsync,
     );
+    _staggerController = controller;
+
+    final totalMs = AnimationConstants.normalDuration.inMilliseconds +
+        (itemCount * delay.inMilliseconds);
 
     _staggerAnimations = List.generate(
       itemCount,
       (index) => Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
-          parent: _staggerController,
+          parent: controller,
           curve: Interval(
-            (index * delay.inMilliseconds) /
-                (AnimationConstants.normalDuration.inMilliseconds +
-                    (itemCount * delay.inMilliseconds)),
+            (index * delay.inMilliseconds) / totalMs,
             1.0,
             curve: AnimationConstants.defaultCurve,
           ),
@@ -170,7 +179,7 @@ mixin StaggerAnimationMixin<T extends StatefulWidget> on State<T> {
   }
 
   void startStaggerAnimation() {
-    _staggerController.forward();
+    _staggerController?.forward(from: 0.0);
   }
 
   Widget buildStaggerWidget({
@@ -178,7 +187,9 @@ mixin StaggerAnimationMixin<T extends StatefulWidget> on State<T> {
     required Widget child,
     Duration delay = AnimationConstants.staggerDelay,
   }) {
-    if (index >= _staggerAnimations.length) return child;
+    if (_staggerController == null || index >= _staggerAnimations.length) {
+      return child;
+    }
 
     return AnimatedBuilder(
       animation: _staggerAnimations[index],
@@ -197,7 +208,7 @@ mixin StaggerAnimationMixin<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
-    _staggerController.dispose();
+    _staggerController?.dispose();
     super.dispose();
   }
 }

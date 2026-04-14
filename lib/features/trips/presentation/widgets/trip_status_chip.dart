@@ -60,6 +60,11 @@ class TripStatusChip extends StatelessWidget {
           background: Color(0xFFD1FAE5), // emerald-100
           foreground: Color(0xFF047857), // emerald-700
         );
+      case TripRequestStatus.depositPaid:
+        return const _StatusColors(
+          background: Color(0xFFFEF3C7), // amber-100
+          foreground: Color(0xFFB45309), // amber-700
+        );
       case TripRequestStatus.rejected:
       case TripRequestStatus.cancelled:
         return const _StatusColors(
@@ -97,6 +102,8 @@ class TripStatusChip extends StatelessWidget {
         return tr('status_under_review');
       case TripRequestStatus.approved:
         return tr('status_approved');
+      case TripRequestStatus.depositPaid:
+        return tr('status_deposit_paid');
       case TripRequestStatus.rejected:
         return tr('status_rejected');
       case TripRequestStatus.invoiced:

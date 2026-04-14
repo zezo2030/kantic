@@ -7,6 +7,7 @@ class SchoolTripRequestModel extends SchoolTripRequestEntity {
   const SchoolTripRequestModel({
     required super.id,
     required super.requesterId,
+    super.branchId,
     required super.schoolName,
     required super.studentsCount,
     required super.accompanyingAdults,
@@ -20,6 +21,14 @@ class SchoolTripRequestModel extends SchoolTripRequestEntity {
     required super.specialRequirements,
     required super.participants,
     required super.addOns,
+    super.pricePerStudent,
+    super.ticketsTotal,
+    super.addOnsTotal,
+    super.totalPrice,
+    super.depositAmount,
+    super.remainingAmount,
+    super.amountPaid,
+    super.paymentOption,
     required super.excelFilePath,
     required super.quotedPrice,
     required super.invoiceId,
@@ -39,6 +48,7 @@ class SchoolTripRequestModel extends SchoolTripRequestEntity {
     return SchoolTripRequestModel(
       id: json['id'] as String? ?? '',
       requesterId: json['requesterId'] as String? ?? '',
+      branchId: json['branchId'] as String?,
       schoolName: json['schoolName'] as String? ?? '',
       studentsCount: _asInt(json['studentsCount']),
       accompanyingAdults: _asInt(json['accompanyingAdults']),
@@ -58,6 +68,19 @@ class SchoolTripRequestModel extends SchoolTripRequestEntity {
           .whereType<Map<String, dynamic>>()
           .map(TripAddOnModel.fromJson)
           .toList(),
+      pricePerStudent:
+          _asDouble(json['pricePerStudent'] ?? json['ticketPrice']),
+      ticketsTotal:
+          _asDouble(json['ticketsTotal'] ?? json['ticketTotal'] ?? json['ticketsPrice']),
+      addOnsTotal:
+          _asDouble(json['addOnsTotal'] ?? json['addonsTotal'] ?? json['extrasTotal']),
+      totalPrice:
+          _asDouble(json['totalPrice'] ?? json['totalAmount'] ?? json['grandTotal']),
+      depositAmount:
+          _asDouble(json['depositAmount'] ?? json['downPaymentAmount']),
+      remainingAmount: _asDouble(json['remainingAmount']),
+      amountPaid: _asDouble(json['amountPaid']),
+      paymentOption: json['paymentOption'] as String?,
       excelFilePath: json['excelFilePath'] as String?,
       quotedPrice: _asDouble(json['quotedPrice']),
       invoiceId: json['invoiceId'] as String?,
@@ -75,6 +98,7 @@ class SchoolTripRequestModel extends SchoolTripRequestEntity {
     return {
       'id': id,
       'requesterId': requesterId,
+      'branchId': branchId,
       'schoolName': schoolName,
       'studentsCount': studentsCount,
       'accompanyingAdults': accompanyingAdults,
@@ -96,6 +120,14 @@ class SchoolTripRequestModel extends SchoolTripRequestEntity {
               ? addon.toJson()
               : TripAddOnModel.fromEntity(addon).toJson())
           .toList(),
+      'pricePerStudent': pricePerStudent,
+      'ticketsTotal': ticketsTotal,
+      'addOnsTotal': addOnsTotal,
+      'totalPrice': totalPrice,
+      'depositAmount': depositAmount,
+      'remainingAmount': remainingAmount,
+      'amountPaid': amountPaid,
+      'paymentOption': paymentOption,
       'excelFilePath': excelFilePath,
       'quotedPrice': quotedPrice,
       'invoiceId': invoiceId,

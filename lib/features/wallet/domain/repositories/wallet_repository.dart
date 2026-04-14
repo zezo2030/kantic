@@ -5,7 +5,7 @@ import '../entities/wallet_transaction_entity.dart';
 
 abstract class WalletRepository {
   Future<Either<Failure, WalletEntity>> getWalletBalance();
-  
+
   Future<Either<Failure, List<WalletTransactionEntity>>> getTransactions({
     WalletTransactionType? type,
     WalletTransactionStatus? status,
@@ -13,15 +13,24 @@ abstract class WalletRepository {
     int pageSize = 20,
   });
 
-  Future<Either<Failure, RedeemPointsResult>> redeemPoints({required int points});
+  Future<Either<Failure, WalletRechargeResult>> rechargeWallet({
+    required double amount,
+  });
+
+  Future<Either<Failure, bool>> confirmRechargePayment({
+    required String paymentId,
+    required String moyasarPaymentId,
+  });
 }
 
-class RedeemPointsResult {
-  final int redeemed;
-  final double credit;
+class WalletRechargeResult {
+  final String? paymentId;
+  final String? redirectUrl;
+  final String? chargeId;
 
-  RedeemPointsResult({
-    required this.redeemed,
-    required this.credit,
+  WalletRechargeResult({
+    this.paymentId,
+    this.redirectUrl,
+    this.chargeId,
   });
 }

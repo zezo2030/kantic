@@ -315,22 +315,29 @@ class ModernTicketWidget extends StatelessWidget {
               children: [
                 // Date Info
                 if (validFrom != null)
-                  Row(
-                    children: [
-                      Icon(
-                        Iconsax.calendar_1,
-                        size: 14,
-                        color: isDark ? Colors.grey[500] : Colors.grey[400],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        DateFormat('dd/MM/yyyy').format(validFrom!),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          Iconsax.calendar_1,
+                          size: 14,
+                          color: isDark ? Colors.grey[500] : Colors.grey[400],
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            DateFormat('dd/MM/yyyy').format(validFrom!),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   )
                 else
                   const SizedBox(),

@@ -1,10 +1,12 @@
 // My EventRequests Page - Presentation Layer
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../../../auth/di/auth_injection.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../cubit/event_request_cubit.dart';
 import '../cubit/event_request_state.dart';
 import '../widgets/event_request_card.dart';
@@ -30,8 +32,31 @@ class _MyEventRequestsView extends StatefulWidget {
   State<_MyEventRequestsView> createState() => _MyEventRequestsViewState();
 }
 
-class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
+class _MyEventRequestsViewState extends State<_MyEventRequestsView>
+    with TickerProviderStateMixin {
   String? _selectedStatus;
+  late AnimationController _fabController;
+  late Animation<double> _fabAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _fabController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fabAnimation = CurvedAnimation(
+      parent: _fabController,
+      curve: Curves.easeOutBack,
+    );
+    _fabController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +69,18 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Iconsax.arrow_left_2, color: Color(0xFF1E293B)),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Iconsax.arrow_left_2,
+              color: Color(0xFF1E293B),
+              size: 20,
+            ),
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -65,7 +101,7 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
       body: BlocBuilder<EventRequestCubit, EventRequestState>(
         builder: (context, state) {
           if (state is EventRequestsLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return _buildLoadingState();
           }
 
           if (state is EventRequestsError) {
@@ -75,6 +111,7 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
           if (state is EventRequestsLoaded) {
             return RefreshIndicator(
               onRefresh: () async {
+                HapticFeedback.mediumImpact();
                 context.read<EventRequestCubit>().getRequests(
                   status: _selectedStatus == 'all' ? null : _selectedStatus,
                 );
@@ -90,7 +127,7 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
                       children: [
                         const SizedBox(height: 16),
                         _buildFilterChips(context),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
@@ -110,24 +147,38 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
                           final request = state.requests[index];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 16),
-                            child: EventRequestCard(
-                              request: request,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => EventRequestDetailsPage(
-                                      requestId: request.id,
-                                    ),
-                                  ),
+                            child: TweenAnimationBuilder<double>(
+                              duration: Duration(
+                                milliseconds: 300 + (index * 50),
+                              ),
+                              tween: Tween(begin: 0.0, end: 1.0),
+                              curve: Curves.easeOutCubic,
+                              builder: (context, value, child) {
+                                return Transform.translate(
+                                  offset: Offset(0, 20 * (1 - value)),
+                                  child: Opacity(opacity: value, child: child),
                                 );
                               },
+                              child: EventRequestCard(
+                                request: request,
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => EventRequestDetailsPage(
+                                        requestId: request.id,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           );
                         }, childCount: state.requests.length),
                       ),
                     ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               ),
             );
@@ -136,34 +187,74 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
           return const SizedBox.shrink();
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BlocProvider(
-                create: (_) => sl<EventRequestCubit>(),
-                child: const CreateEventRequestPage(),
+      floatingActionButton: ScaleTransition(
+        scale: _fabAnimation,
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            HapticFeedback.heavyImpact();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BlocProvider(
+                  create: (_) => sl<EventRequestCubit>(),
+                  child: const CreateEventRequestPage(),
+                ),
               ),
+            ).then((_) {
+              context.read<EventRequestCubit>().getRequests(
+                status: _selectedStatus == 'all' ? null : _selectedStatus,
+              );
+            });
+          },
+          backgroundColor: theme.primaryColor,
+          elevation: 4,
+          highlightElevation: 8,
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ).then((_) {
-            context.read<EventRequestCubit>().getRequests(
-              status: _selectedStatus == 'all' ? null : _selectedStatus,
-            );
-          });
-        },
-        backgroundColor: theme.primaryColor,
-        elevation: 4,
-        highlightElevation: 8,
-        icon: const Icon(Iconsax.add, color: Colors.white),
-        label: Text(
-          'create_new_request'.tr(),
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontFamily: 'MontserratArabic',
+            child: const Icon(Iconsax.add, color: Colors.white, size: 20),
+          ),
+          label: Text(
+            'create_new_request'.tr(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'MontserratArabic',
+              fontSize: 14,
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: AppColors.primaryRed,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'loading'.tr(),
+            style: TextStyle(
+              fontFamily: 'MontserratArabic',
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.greyMedium,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -190,12 +281,42 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
 
           return Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              child: FilterChip(
-                selected: isSelected,
-                showCheckmark: false,
-                label: Text(
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() {
+                  _selectedStatus = entry.key == 'all' ? null : entry.key;
+                });
+                context.read<EventRequestCubit>().getRequests(
+                  status: _selectedStatus,
+                );
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? theme.primaryColor : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isSelected
+                        ? theme.primaryColor
+                        : const Color(0xFFE2E8F0),
+                    width: 1.5,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: theme.primaryColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
                   entry.value,
                   style: TextStyle(
                     color: isSelected ? Colors.white : const Color(0xFF64748B),
@@ -204,29 +325,6 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
                     fontSize: 13,
                   ),
                 ),
-                backgroundColor: Colors.white,
-                selectedColor: theme.primaryColor,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: isSelected
-                        ? theme.primaryColor
-                        : const Color(0xFFE2E8F0),
-                    width: 1.5,
-                  ),
-                ),
-                onSelected: (_) {
-                  setState(() {
-                    _selectedStatus = entry.key == 'all' ? null : entry.key;
-                  });
-                  context.read<EventRequestCubit>().getRequests(
-                    status: _selectedStatus,
-                  );
-                },
               ),
             ),
           );
@@ -239,38 +337,123 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        const SizedBox(height: 40),
+        // Animated illustration
         Container(
-          width: 120,
-          height: 120,
+          width: 140,
+          height: 140,
           decoration: BoxDecoration(
-            color: theme.primaryColor.withOpacity(0.05),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.primaryOrange.withOpacity(0.1),
+                AppColors.primaryRed.withOpacity(0.08),
+              ],
+            ),
             shape: BoxShape.circle,
           ),
-          child: Icon(Iconsax.reserve, size: 64, color: theme.primaryColor),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryRed.withOpacity(0.1),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Iconsax.calendar_add,
+                  size: 48,
+                  color: AppColors.primaryRed.withOpacity(0.7),
+                ),
+              ),
+              Positioned(
+                bottom: 20,
+                right: 20,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryOrange,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryOrange.withOpacity(0.4),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Iconsax.add, size: 16, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
         Text(
           'no_requests'.tr(),
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: 'MontserratArabic',
-            fontSize: 20,
+            fontSize: 22,
             fontWeight: FontWeight.w800,
             color: Color(0xFF1E293B),
           ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
-        Text(
-          'start_by_creating_special_request'.tr(),
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: 'MontserratArabic',
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF64748B),
-            height: 1.5,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            'start_by_creating_special_request'.tr(),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontFamily: 'MontserratArabic',
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF64748B),
+              height: 1.6,
+            ),
           ),
         ),
+        const SizedBox(height: 32),
+        // Hint text
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.primaryOrange.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Iconsax.tick_circle,
+                size: 18,
+                color: AppColors.primaryOrange,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'tap_below_to_start'.tr(),
+                style: TextStyle(
+                  fontFamily: 'MontserratArabic',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryOrange,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 120),
       ],
     );
   }
@@ -284,52 +467,97 @@ class _MyEventRequestsViewState extends State<_MyEventRequestsView> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Iconsax.warning_2,
-                size: 48,
-                color: Colors.redAccent,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.1),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Iconsax.warning_2,
+                  size: 40,
+                  color: Colors.red.shade400,
+                ),
               ),
             ),
             const SizedBox(height: 24),
             Text(
-              message,
-              textAlign: TextAlign.center,
+              'oops_something_went_wrong'.tr(),
               style: const TextStyle(
                 fontFamily: 'MontserratArabic',
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
                 color: Color(0xFF1E293B),
               ),
             ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'MontserratArabic',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF64748B),
+                  height: 1.5,
+                ),
+              ),
+            ),
             const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () {
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
                 context.read<EventRequestCubit>().getRequests(
                   status: _selectedStatus,
                 );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.primaryColor,
-                foregroundColor: Colors.white,
+              child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
-                  vertical: 12,
+                  vertical: 14,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primaryOrange, AppColors.primaryRed],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryRed.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ),
-              icon: const Icon(Iconsax.refresh),
-              label: Text(
-                'retry'.tr(),
-                style: TextStyle(
-                  fontFamily: 'MontserratArabic',
-                  fontWeight: FontWeight.bold,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Iconsax.refresh, size: 18, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      'retry'.tr(),
+                      style: const TextStyle(
+                        fontFamily: 'MontserratArabic',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

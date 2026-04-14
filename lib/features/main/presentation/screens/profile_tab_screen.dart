@@ -10,6 +10,7 @@ import '../../../auth/presentation/cubit/auth_state.dart';
 import '../../../auth/presentation/screens/edit_profile_screen.dart';
 import '../../../wallet/presentation/screens/wallet_screen.dart';
 import '../../../wallet/presentation/cubit/wallet_cubit.dart';
+import '../../../loyalty/presentation/screens/loyalty_screen.dart';
 import '../../../events/presentation/pages/my_event_requests_page.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routes/app_route_generator.dart';
@@ -220,29 +221,46 @@ class ProfileTabScreen extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            // Loyalty Points
+                            // Loyalty Points (tappable)
                             if (user.wallet != null) ...[
                               const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Iconsax.star1,
-                                    color: Colors.amber.shade300,
-                                    size: 18,
+                              GestureDetector(
+                                onTap: () => _openLoyaltyScreen(context),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    user.wallet!.loyaltyPoints > 0
-                                        ? '${user.wallet!.loyaltyPoints} ${'points'.tr()}'
-                                        : '0 ${'points'.tr()}',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: Colors.white.withOpacity(0.95),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(20),
                                   ),
-                                ],
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Iconsax.star1,
+                                        color: Colors.amber.shade300,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '${user.wallet!.loyaltyPoints} ${'points'.tr()}',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Iconsax.arrow_right_1,
+                                        color: Colors.white.withOpacity(0.8),
+                                        size: 12,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                             // Phone
@@ -314,13 +332,6 @@ class ProfileTabScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // My Bookings
-          _buildSectionTitle(context, 'my_bookings'.tr()),
-          const SizedBox(height: 12),
-          _buildMyBookingsCard(context),
-
-          const SizedBox(height: 24),
-
           _buildSectionTitle(context, 'subscriptions_and_offers_profile'.tr()),
           const SizedBox(height: 12),
           _buildCommerceShortcutsCard(context),
@@ -331,6 +342,12 @@ class ProfileTabScreen extends StatelessWidget {
           _buildSectionTitle(context, 'booking_options'.tr()),
           const SizedBox(height: 12),
           _buildBookingOptionsCard(context),
+
+          const SizedBox(height: 24),
+
+          _buildSectionTitle(context, 'settings'.tr()),
+          const SizedBox(height: 12),
+          _buildLanguagePreferencesCard(context),
 
           const SizedBox(height: 24),
 
@@ -424,7 +441,7 @@ class ProfileTabScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMyBookingsCard(BuildContext context) {
+  Widget _buildLanguagePreferencesCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -439,29 +456,14 @@ class ProfileTabScreen extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _buildSettingTile(
-            context,
-            icon: Iconsax.calendar_1,
-            title: 'my_bookings'.tr(),
-            subtitle: 'view_my_bookings'.tr(),
-            onTap: () {
-              // TODO: Navigate to my bookings screen
-              Navigator.pushNamed(context, '/my-bookings');
-            },
-          ),
-          const Divider(height: 24),
-          _buildSettingTile(
-            context,
-            icon: Iconsax.language_square,
-            title: 'change_language'.tr(),
-            subtitle: context.locale.languageCode == 'ar'
-                ? 'language_arabic'.tr()
-                : 'language_english'.tr(),
-            onTap: () => _showLanguageDialog(context),
-          ),
-        ],
+      child: _buildSettingTile(
+        context,
+        icon: Iconsax.language_square,
+        title: 'change_language'.tr(),
+        subtitle: context.locale.languageCode == 'ar'
+            ? 'language_arabic'.tr()
+            : 'language_english'.tr(),
+        onTap: () => _showLanguageDialog(context),
       ),
     );
   }
@@ -539,6 +541,16 @@ class ProfileTabScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
+          _buildSettingTile(
+            context,
+            icon: Iconsax.star1,
+            title: 'loyalty_program'.tr(),
+            subtitle: 'loyalty_program_subtitle'.tr(),
+            onTap: () => _openLoyaltyScreen(context),
+          ),
+
+          const Divider(height: 24),
+
           _buildSettingTile(
             context,
             icon: Iconsax.wallet_3,
@@ -664,6 +676,13 @@ class ProfileTabScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _openLoyaltyScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LoyaltyScreen()),
     );
   }
 

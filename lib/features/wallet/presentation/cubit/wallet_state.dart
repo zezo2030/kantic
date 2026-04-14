@@ -21,36 +21,38 @@ class WalletLoaded extends WalletState {
   });
 }
 
-class WalletRedeemLoading extends WalletState {
+class WalletRechargeLoading extends WalletState {
   final WalletEntity? wallet;
   final List<WalletTransactionEntity> transactions;
 
-  WalletRedeemLoading({
+  WalletRechargeLoading({
     this.wallet,
     this.transactions = const [],
   });
 }
 
-class WalletRedeemSuccess extends WalletState {
+class WalletRechargeSuccess extends WalletState {
   final WalletEntity? wallet;
   final List<WalletTransactionEntity> transactions;
-  final int redeemedPoints;
-  final double creditedAmount;
+  final String? redirectUrl;
+  final String? paymentId;
+  final double? amount;
 
-  WalletRedeemSuccess({
+  WalletRechargeSuccess({
     this.wallet,
     this.transactions = const [],
-    required this.redeemedPoints,
-    required this.creditedAmount,
+    this.redirectUrl,
+    this.paymentId,
+    this.amount,
   });
 }
 
-class WalletRedeemFailed extends WalletState {
+class WalletRechargeFailed extends WalletState {
   final WalletEntity? wallet;
   final List<WalletTransactionEntity> transactions;
   final String error;
 
-  WalletRedeemFailed({
+  WalletRechargeFailed({
     this.wallet,
     this.transactions = const [],
     required this.error,

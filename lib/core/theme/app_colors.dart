@@ -156,4 +156,11 @@ class AppColors {
   static const Color luxuryBorderLight = Color(0xFFF0F0F0);
   static const Color luxuryBorderGold = Color(0xFFFFB74D);
   static const Color luxuryBorderRose = Color(0xFFF8BBD9);
+
+  // Success Gradient
+  static const LinearGradient successGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [successColor, Color(0xFF81C784)],
+  );
 }

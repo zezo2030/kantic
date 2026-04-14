@@ -44,52 +44,59 @@ class _KineticLoginScreenState extends State<KineticLoginScreen> {
           },
           builder: (context, state) {
             final bool isLoading = state is AuthLoading;
+            final double bottomInset = MediaQuery.paddingOf(context).bottom;
 
-            return Column(
-              children: [
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: <Color>[
-                          Color(0xFFE6003A),
-                          Color(0xFFFF2871),
-                        ],
-                      ),
+            return SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: MediaQuery.sizeOf(context).height * 0.38,
                     ),
-                    child: SafeArea(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/imgs/kinetic.png',
-                            height: 180,
-                            color: Colors.white,
-                            colorBlendMode: BlendMode.srcIn,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            easy_localization.tr(
-                              'complete_registration_tagline_top',
-                            ),
-                            style: TextStyle(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: <Color>[
+                            Color(0xFFE6003A),
+                            Color(0xFFFF2871),
+                          ],
+                        ),
+                      ),
+                      child: SafeArea(
+                        bottom: false,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/imgs/kinetic.png',
+                              height: 180,
                               color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
+                              colorBlendMode: BlendMode.srcIn,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 12),
+                            Text(
+                              easy_localization.tr(
+                                'complete_registration_tagline_top',
+                              ),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-
-                Expanded(
-                  child: Transform.translate(
+                  Transform.translate(
                     offset: const Offset(0, -36),
                     child: Container(
                       width: double.infinity,
@@ -107,16 +114,17 @@ class _KineticLoginScreenState extends State<KineticLoginScreen> {
                           ),
                         ],
                       ),
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 32,
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        32,
+                        16,
+                        32 + bottomInset,
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
@@ -347,9 +355,8 @@ class _KineticLoginScreenState extends State<KineticLoginScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             );
           },
         ),

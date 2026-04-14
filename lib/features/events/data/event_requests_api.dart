@@ -9,6 +9,28 @@ class EventRequestsApi {
 
   EventRequestsApi({Dio? dio}) : _dio = dio ?? DioClient.instance;
 
+  Future<Map<String, dynamic>> fetchConfig({
+    String? branchId,
+    String? date,
+  }) async {
+    final params = <String, dynamic>{};
+    if (branchId != null && branchId.isNotEmpty) params['branchId'] = branchId;
+    if (date != null && date.isNotEmpty) params['date'] = date;
+
+    final response = await _dio.get(
+      '${core.ApiConstants.baseUrl}${core.ApiConstants.eventsConfigEndpoint}',
+      queryParameters: params.isEmpty ? null : params,
+    );
+
+    final dynamic responseData = response.data;
+    if (responseData is Map<String, dynamic>) {
+      final nested = responseData['data'];
+      if (nested is Map<String, dynamic>) return nested;
+      return responseData;
+    }
+    return <String, dynamic>{};
+  }
+
   Future<({List<EventRequestModel> requests, int total, int page, int totalPages})> fetch({
     int page = 1,
     int limit = 10,

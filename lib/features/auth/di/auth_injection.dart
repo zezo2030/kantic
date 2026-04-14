@@ -26,6 +26,7 @@ import '../../events/di/events_injection.dart';
 import '../../notifications/di/notifications_injection.dart';
 import '../../subscriptions/di/subscriptions_injection.dart';
 import '../../offer_products/di/offer_products_injection.dart';
+import '../../loyalty/di/loyalty_injection.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -101,4 +102,7 @@ Future<void> init() async {
   // Subscriptions & catalog offer products (backend sync)
   initSubscriptions();
   initOfferProducts();
+
+  // Loyalty feature
+  initLoyaltyInjection();
 }

@@ -74,8 +74,14 @@ class BranchModel extends BranchEntity {
       images: ((json['images'] ?? json['gallery']) as List<dynamic>?)
           ?.map((e) => e?.toString() ?? '')
           .toList(),
-      latitude: _parseDouble(json['lat'] ?? json['latitude']),
-      longitude: _parseDouble(json['lng'] ?? json['longitude']),
+      latitude:
+          _parseDouble(json['lat'] ?? json['latitude']) ??
+          _coordFromMap(json['coordinates'], const ['lat', 'latitude']) ??
+          _coordFromMap(json['geo'], const ['lat', 'latitude']),
+      longitude:
+          _parseDouble(json['lng'] ?? json['longitude']) ??
+          _coordFromMap(json['coordinates'], const ['lng', 'longitude']) ??
+          _coordFromMap(json['geo'], const ['lng', 'longitude']),
       rating: _parseDouble(json['rating']),
       reviewsCount: _parseInt(json['reviewsCount'] ?? json['reviews_count']),
       offers: (json['offers'] as List<dynamic>?)?.toList(),
@@ -105,7 +111,20 @@ class BranchModel extends BranchEntity {
   static double? _parseDouble(dynamic v) {
     if (v == null) return null;
     if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v);
+    if (v is String) {
+      final s = v.trim().replaceAll(',', '.');
+      return double.tryParse(s);
+    }
+    return null;
+  }
+
+  static double? _coordFromMap(dynamic map, List<String> keys) {
+    if (map is! Map) return null;
+    final m = Map<String, dynamic>.from(map);
+    for (final k in keys) {
+      final d = _parseDouble(m[k]);
+      if (d != null) return d;
+    }
     return null;
   }
 

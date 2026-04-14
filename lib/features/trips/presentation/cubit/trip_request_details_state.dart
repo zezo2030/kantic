@@ -5,7 +5,6 @@ import '../../domain/entities/school_trip_request_entity.dart';
 class TripRequestDetailsState extends Equatable {
   final bool isLoading;
   final bool isSubmitting;
-  final bool isUploading;
   final SchoolTripRequestEntity? request;
   final String? errorMessage;
   final String? successMessage;
@@ -13,7 +12,6 @@ class TripRequestDetailsState extends Equatable {
   const TripRequestDetailsState({
     required this.isLoading,
     required this.isSubmitting,
-    required this.isUploading,
     required this.request,
     this.errorMessage,
     this.successMessage,
@@ -23,7 +21,6 @@ class TripRequestDetailsState extends Equatable {
     return const TripRequestDetailsState(
       isLoading: false,
       isSubmitting: false,
-      isUploading: false,
       request: null,
       errorMessage: null,
       successMessage: null,
@@ -33,7 +30,6 @@ class TripRequestDetailsState extends Equatable {
   TripRequestDetailsState copyWith({
     bool? isLoading,
     bool? isSubmitting,
-    bool? isUploading,
     SchoolTripRequestEntity? request,
     String? errorMessage,
     String? successMessage,
@@ -41,7 +37,6 @@ class TripRequestDetailsState extends Equatable {
     return TripRequestDetailsState(
       isLoading: isLoading ?? this.isLoading,
       isSubmitting: isSubmitting ?? this.isSubmitting,
-      isUploading: isUploading ?? this.isUploading,
       request: request ?? this.request,
       errorMessage: errorMessage,
       successMessage: successMessage,
@@ -52,6 +47,5 @@ class TripRequestDetailsState extends Equatable {
 
   @override
   List<Object?> get props =>
-      [isLoading, isSubmitting, isUploading, request, errorMessage, successMessage];
+      [isLoading, isSubmitting, request, errorMessage, successMessage];
 }
-

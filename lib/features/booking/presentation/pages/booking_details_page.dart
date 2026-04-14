@@ -29,6 +29,7 @@ import '../../../../core/utils/share_utils.dart';
 import '../cubit/booking_cubit.dart';
 import '../cubit/booking_state.dart';
 import '../../di/booking_injection.dart';
+import 'booking_moyasar_payment_page.dart';
 
 class BookingDetailsPage extends StatefulWidget {
   final BookingEntity booking;
@@ -1091,18 +1092,6 @@ class _BookingDetailsPageState extends State<BookingDetailsPage>
                     },
                   ),
                   const Divider(),
-                  // Mada (مدى)
-                  ListTile(
-                    leading: const Icon(Iconsax.card, color: Colors.green),
-                    title: Text('mada'.tr()),
-                    subtitle: Text('mada_card'.tr()),
-                    trailing: const Icon(Iconsax.arrow_left_2),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _processPayment(context, 'mada');
-                    },
-                  ),
-                  const Divider(),
                   // Wallet
                   ListTile(
                     leading: const Icon(Iconsax.wallet_3, color: Colors.green),
@@ -1163,55 +1152,108 @@ class _BookingDetailsPageState extends State<BookingDetailsPage>
         child: BlocConsumer<PaymentCubit, PaymentState>(
           listener: (dialogContext, state) async {
             if (state is PaymentIntentCreated) {
-              // تم فتح صفحة الدفع - نعرض رسالة للمستخدم
-              Navigator.pop(dialogContext); // Close loading dialog
+              if (method == 'wallet') {
+                return;
+              }
 
-              if (pageContext.mounted) {
-                // إظهار رسالة للمستخدم
-                ScaffoldMessenger.of(pageContext).showSnackBar(
-                  SnackBar(
-                    content: Text('complete_payment_open_page'.tr()),
-                    duration: const Duration(seconds: 5),
-                    backgroundColor: Colors.blue,
-                    action: SnackBarAction(
-                      label: 'verify_status'.tr(),
-                      textColor: Colors.white,
-                      onPressed: () {
-                        // التحقق من حالة الدفع عند الضغط على الزر
-                        paymentCubit.checkPaymentStatus(
-                          bookingId: widget.booking.id,
-                          paymentId: state.intent.paymentId,
-                          chargeId: state.intent.chargeId,
-                        );
-                      },
+              final redirect = state.intent.redirectUrl;
+              if (redirect != null && redirect.isNotEmpty) {
+                Navigator.pop(dialogContext);
+
+                if (pageContext.mounted) {
+                  ScaffoldMessenger.of(pageContext).showSnackBar(
+                    SnackBar(
+                      content: Text('complete_payment_open_page'.tr()),
+                      duration: const Duration(seconds: 5),
+                      backgroundColor: Colors.blue,
+                      action: SnackBarAction(
+                        label: 'verify_status'.tr(),
+                        textColor: Colors.white,
+                        onPressed: () {
+                          paymentCubit.checkPaymentStatus(
+                            bookingId: widget.booking.id,
+                            paymentId: state.intent.paymentId,
+                            chargeId: state.intent.chargeId,
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                );
+                  );
 
-                // بدء التحقق الدوري من حالة الدفع (كل 10 ثوان)
-                _paymentStatusTimer?.cancel(); // إلغاء أي timer سابق
-                _paymentStatusTimer = Timer.periodic(
-                  const Duration(seconds: 10),
-                  (timer) async {
-                    if (!pageContext.mounted) {
-                      timer.cancel();
-                      return;
-                    }
+                  _paymentStatusTimer?.cancel();
+                  _paymentStatusTimer = Timer.periodic(
+                    const Duration(seconds: 10),
+                    (timer) async {
+                      if (!pageContext.mounted) {
+                        timer.cancel();
+                        return;
+                      }
 
-                    // التحقق من حالة الدفع
-                    paymentCubit.checkPaymentStatus(
-                      bookingId: widget.booking.id,
-                      paymentId: state.intent.paymentId,
-                      chargeId: state.intent.chargeId,
+                      paymentCubit.checkPaymentStatus(
+                        bookingId: widget.booking.id,
+                        paymentId: state.intent.paymentId,
+                        chargeId: state.intent.chargeId,
+                      );
+
+                      if (timer.tick >= 30) {
+                        timer.cancel();
+                        _paymentStatusTimer = null;
+                      }
+                    },
+                  );
+                }
+              } else if (method == 'credit_card') {
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  if (!dialogContext.mounted) return;
+                  Navigator.pop(dialogContext);
+                  if (!pageContext.mounted) return;
+                  final payable =
+                      state.intent.amount ?? _currentBooking!.totalPrice;
+                  final paid = await Navigator.of(pageContext).push<bool>(
+                    MaterialPageRoute<bool>(
+                      builder: (_) => BookingMoyasarPaymentPage(
+                        bookingId: widget.booking.id,
+                        paymentId: state.intent.paymentId,
+                        amount: payable,
+                      ),
+                    ),
+                  );
+                  if (!pageContext.mounted) return;
+                  if (paid == true) {
+                    _paymentStatusTimer?.cancel();
+                    _paymentStatusTimer = null;
+                    ScaffoldMessenger.of(pageContext).showSnackBar(
+                      SnackBar(
+                        content: Text('payment_success'.tr()),
+                        backgroundColor: Colors.green,
+                      ),
                     );
-
-                    // إيقاف التحقق بعد 5 دقائق
-                    if (timer.tick >= 30) {
-                      timer.cancel();
-                      _paymentStatusTimer = null;
+                    try {
+                      await Future.delayed(const Duration(milliseconds: 500));
+                      if (!pageContext.mounted) return;
+                      final updatedBooking = await BookingsApi().getBookingById(
+                        widget.booking.id,
+                      );
+                      if (!pageContext.mounted) return;
+                      Navigator.of(pageContext).pop();
+                      if (!pageContext.mounted) return;
+                      Navigator.of(pageContext).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => BookingDetailsPage(
+                            booking: updatedBooking,
+                            quote: _quote,
+                            filterTicketIds: widget.filterTicketIds,
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!pageContext.mounted) return;
+                      Navigator.of(pageContext).pop(true);
                     }
-                  },
-                );
+                  }
+                });
+              } else {
+                Navigator.pop(dialogContext);
               }
             } else if (state is PaymentSuccess) {
               // إلغاء Timer عند نجاح الدفع

@@ -13,8 +13,7 @@ class TripRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalParticipants =
-        request.studentsCount + request.accompanyingAdults;
+    final headcount = request.studentsCount;
     final primaryColor = Theme.of(context).primaryColor;
 
     return Container(
@@ -121,7 +120,7 @@ class TripRequestCard extends StatelessWidget {
                       child: _InfoTile(
                         icon: Iconsax.profile_2user,
                         title: tr('participants'),
-                        value: '$totalParticipants ${tr('person')}',
+                        value: '$headcount ${tr('person')}',
                       ),
                     ),
                   ],

@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../domain/entities/branch_entity.dart';
+import '../../../branches/presentation/pages/branches_map_page.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/url_utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -264,185 +265,193 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onBranchTap(branch),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Branch Image
-                _buildBranchThumb(branch),
-
-                const SizedBox(width: 16),
-
-                // Branch Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: () => _onBranchTap(branch),
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      // Branch Name
-                      Text(
-                        context.locale.languageCode == 'ar'
-                            ? branch.nameAr
-                            : branch.nameEn,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.luxuryTextPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-
-                      const SizedBox(height: 4),
-
-                      // Location and Distance
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.place,
-                            size: 14,
-                            color: AppColors.luxuryTextSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              branch.location,
-                              style: TextStyle(
-                                color: AppColors.luxuryTextSecondary,
-                                fontSize: 12,
+                      _buildBranchThumb(branch),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.locale.languageCode == 'ar'
+                                  ? branch.nameAr
+                                  : branch.nameEn,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.luxuryTextPrimary,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          if (distance != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.luxuryRedGradient.colors.first
-                                    .withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'distance_km'.tr(
-                                  args: [distance.toStringAsFixed(1)],
-                                ),
-                                style: TextStyle(
-                                  color: AppColors.luxuryDeepRed,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // Status and Capacity
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          // Status Badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: branch.status == 'active'
-                                  ? AppColors.successColor.withOpacity(0.1)
-                                  : AppColors.warningColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              branch.status == 'active'
-                                  ? 'active'.tr()
-                                  : 'inactive'.tr(),
-                              style: TextStyle(
-                                color: branch.status == 'active'
-                                    ? AppColors.successColor
-                                    : AppColors.warningColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-
-                          // Capacity
-                          if (branch.capacity > 0)
+                            const SizedBox(height: 4),
                             Row(
-                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  Icons.people,
-                                  size: 12,
+                                  Icons.place,
+                                  size: 14,
                                   color: AppColors.luxuryTextSecondary,
                                 ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'capacity'.tr(args: ['${branch.capacity}']),
-                                  style: TextStyle(
-                                    color: AppColors.luxuryTextSecondary,
-                                    fontSize: 10,
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    branch.location,
+                                    style: TextStyle(
+                                      color: AppColors.luxuryTextSecondary,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                const SizedBox(width: 8),
+                                if (distance != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors
+                                          .luxuryRedGradient.colors.first
+                                          .withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'distance_km'.tr(
+                                        args: [distance.toStringAsFixed(1)],
+                                      ),
+                                      style: TextStyle(
+                                        color: AppColors.luxuryDeepRed,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
-                        ],
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: branch.status == 'active'
+                                        ? AppColors.successColor
+                                            .withOpacity(0.1)
+                                        : AppColors.warningColor
+                                            .withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    branch.status == 'active'
+                                        ? 'active'.tr()
+                                        : 'inactive'.tr(),
+                                    style: TextStyle(
+                                      color: branch.status == 'active'
+                                          ? AppColors.successColor
+                                          : AppColors.warningColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                if (branch.capacity > 0)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.people,
+                                        size: 12,
+                                        color: AppColors.luxuryTextSecondary,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        'capacity'.tr(
+                                          args: ['${branch.capacity}'],
+                                        ),
+                                        style: TextStyle(
+                                          color: AppColors.luxuryTextSecondary,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-
-                const SizedBox(width: 12),
-
-                // Action Buttons
-                Column(
-                  children: [
-                    // Directions Button
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.luxuryRedGradient.colors.first
-                            .withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.directions,
-                        color: AppColors.luxuryDeepRed,
-                        size: 20,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Book Button
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.cardGradient,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.book_online,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _openMapsForBranch(branch),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.luxuryRedGradient.colors.first
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.directions,
+                          color: AppColors.luxuryDeepRed,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _onBranchTap(branch),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.cardGradient,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.book_online,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -473,10 +482,31 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
       return;
     }
 
+    LocationPermission geoPerm = await Geolocator.checkPermission();
+    if (geoPerm == LocationPermission.denied) {
+      geoPerm = await Geolocator.requestPermission();
+    }
+    if (geoPerm == LocationPermission.denied ||
+        geoPerm == LocationPermission.deniedForever) {
+      setState(() {
+        _isLoadingLocation = false;
+        _locationMessage = 'location_permission_required'.tr();
+      });
+      return;
+    }
+
     try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      Position position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 25),
+        );
+      } catch (_) {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last == null) rethrow;
+        position = last;
+      }
 
       final branchesWithCoords = _sortedBranches
           .where((b) => b.latitude != null && b.longitude != null)
@@ -587,5 +617,23 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
     Navigator.of(
       context,
     ).pushNamed('/branch-details', arguments: {'branchId': branch.id});
+  }
+
+  void _openMapsForBranch(BranchEntity branch) {
+    if (branch.latitude == null || branch.longitude == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('branch_coordinates_unavailable'.tr())),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => BranchesMapPage(
+          branches: widget.branches,
+          focusBranchId: branch.id,
+        ),
+      ),
+    );
   }
 }

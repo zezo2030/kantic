@@ -11,6 +11,10 @@ abstract class EventRequestRemoteDataSource {
     String? type,
   });
   Future<EventRequestModel> createRequest(CreateEventRequestModel request);
+  Future<Map<String, dynamic>> getEventConfig({
+    String? branchId,
+    String? date,
+  });
   Future<EventRequestModel> getRequest(String id);
   Future<List<Map<String, dynamic>>> getEventTickets(String eventRequestId);
 }
@@ -45,6 +49,18 @@ class EventRequestRemoteDataSourceImpl implements EventRequestRemoteDataSource {
   Future<EventRequestModel> createRequest(CreateEventRequestModel request) async {
     try {
       return await api.create(request);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getEventConfig({
+    String? branchId,
+    String? date,
+  }) async {
+    try {
+      return await api.fetchConfig(branchId: branchId, date: date);
     } catch (e) {
       rethrow;
     }

@@ -10,29 +10,36 @@ import '../presentation/cubit/payment_cubit.dart';
 final sl = GetIt.instance;
 
 void initPayments() {
-  // Data source
-  sl.registerLazySingleton<PaymentRemoteDataSource>(
-    () => PaymentRemoteDataSourceImpl(dio: DioClient.instance),
-  );
+  // Idempotent: main() and feature flows may both call this.
+  if (!sl.isRegistered<PaymentRemoteDataSource>()) {
+    sl.registerLazySingleton<PaymentRemoteDataSource>(
+      () => PaymentRemoteDataSourceImpl(dio: DioClient.instance),
+    );
+  }
 
-  // Repository
-  sl.registerLazySingleton<PaymentRepository>(
-    () => PaymentRepositoryImpl(remote: sl<PaymentRemoteDataSource>()),
-  );
+  if (!sl.isRegistered<PaymentRepository>()) {
+    sl.registerLazySingleton<PaymentRepository>(
+      () => PaymentRepositoryImpl(remote: sl<PaymentRemoteDataSource>()),
+    );
+  }
 
-  // Use cases
-  sl.registerLazySingleton(
-    () => CreatePaymentIntentUseCase(repository: sl<PaymentRepository>()),
-  );
-  sl.registerLazySingleton(
-    () => ConfirmPaymentUseCase(repository: sl<PaymentRepository>()),
-  );
+  if (!sl.isRegistered<CreatePaymentIntentUseCase>()) {
+    sl.registerLazySingleton<CreatePaymentIntentUseCase>(
+      () => CreatePaymentIntentUseCase(repository: sl<PaymentRepository>()),
+    );
+  }
+  if (!sl.isRegistered<ConfirmPaymentUseCase>()) {
+    sl.registerLazySingleton<ConfirmPaymentUseCase>(
+      () => ConfirmPaymentUseCase(repository: sl<PaymentRepository>()),
+    );
+  }
 
-  // Cubit
-  sl.registerFactory(
-    () => PaymentCubit(
-      createIntentUseCase: sl<CreatePaymentIntentUseCase>(),
-      confirmPaymentUseCase: sl<ConfirmPaymentUseCase>(),
-    ),
-  );
+  if (!sl.isRegistered<PaymentCubit>()) {
+    sl.registerFactory<PaymentCubit>(
+      () => PaymentCubit(
+        createIntentUseCase: sl<CreatePaymentIntentUseCase>(),
+        confirmPaymentUseCase: sl<ConfirmPaymentUseCase>(),
+      ),
+    );
+  }
 }

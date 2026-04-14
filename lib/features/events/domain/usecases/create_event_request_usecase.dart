@@ -17,6 +17,10 @@ class CreateEventRequestUseCase {
     bool decorated = false,
     List<Map<String, dynamic>>? addOns,
     String? notes,
+    required String selectedTimeSlot,
+    required bool acceptedTerms,
+    required String paymentOption,
+    String? paymentMethod,
   }) async {
     return await repository.createRequest(
       type: type,
@@ -28,6 +32,10 @@ class CreateEventRequestUseCase {
       decorated: decorated,
       addOns: addOns,
       notes: notes,
+      selectedTimeSlot: selectedTimeSlot,
+      acceptedTerms: acceptedTerms,
+      paymentOption: paymentOption,
+      paymentMethod: paymentMethod,
     );
   }
 }

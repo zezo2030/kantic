@@ -7,6 +7,7 @@ import 'trip_request_status.dart';
 class SchoolTripRequestEntity extends Equatable {
   final String id;
   final String requesterId;
+  final String? branchId;
   final String schoolName;
   final int studentsCount;
   final int accompanyingAdults;
@@ -20,6 +21,15 @@ class SchoolTripRequestEntity extends Equatable {
   final String? specialRequirements;
   final List<TripParticipantEntity> participants;
   final List<TripAddOnEntity> addOns;
+  final double? pricePerStudent;
+  final double? ticketsTotal;
+  final double? addOnsTotal;
+  final double? totalPrice;
+  final double? depositAmount;
+  /// After partial (deposit) payment — from API when available.
+  final double? remainingAmount;
+  final double? amountPaid;
+  final String? paymentOption;
   final String? excelFilePath;
   final double? quotedPrice;
   final String? invoiceId;
@@ -34,6 +44,7 @@ class SchoolTripRequestEntity extends Equatable {
   const SchoolTripRequestEntity({
     required this.id,
     required this.requesterId,
+    this.branchId,
     required this.schoolName,
     required this.studentsCount,
     required this.accompanyingAdults,
@@ -47,6 +58,14 @@ class SchoolTripRequestEntity extends Equatable {
     required this.specialRequirements,
     required this.participants,
     required this.addOns,
+    this.pricePerStudent,
+    this.ticketsTotal,
+    this.addOnsTotal,
+    this.totalPrice,
+    this.depositAmount,
+    this.remainingAmount,
+    this.amountPaid,
+    this.paymentOption,
     required this.excelFilePath,
     required this.quotedPrice,
     required this.invoiceId,
@@ -62,6 +81,7 @@ class SchoolTripRequestEntity extends Equatable {
   SchoolTripRequestEntity copyWith({
     String? id,
     String? requesterId,
+    String? branchId,
     String? schoolName,
     int? studentsCount,
     int? accompanyingAdults,
@@ -75,6 +95,14 @@ class SchoolTripRequestEntity extends Equatable {
     String? specialRequirements,
     List<TripParticipantEntity>? participants,
     List<TripAddOnEntity>? addOns,
+    double? pricePerStudent,
+    double? ticketsTotal,
+    double? addOnsTotal,
+    double? totalPrice,
+    double? depositAmount,
+    double? remainingAmount,
+    double? amountPaid,
+    String? paymentOption,
     String? excelFilePath,
     double? quotedPrice,
     String? invoiceId,
@@ -89,6 +117,7 @@ class SchoolTripRequestEntity extends Equatable {
     return SchoolTripRequestEntity(
       id: id ?? this.id,
       requesterId: requesterId ?? this.requesterId,
+      branchId: branchId ?? this.branchId,
       schoolName: schoolName ?? this.schoolName,
       studentsCount: studentsCount ?? this.studentsCount,
       accompanyingAdults: accompanyingAdults ?? this.accompanyingAdults,
@@ -102,6 +131,14 @@ class SchoolTripRequestEntity extends Equatable {
       specialRequirements: specialRequirements ?? this.specialRequirements,
       participants: participants ?? this.participants,
       addOns: addOns ?? this.addOns,
+      pricePerStudent: pricePerStudent ?? this.pricePerStudent,
+      ticketsTotal: ticketsTotal ?? this.ticketsTotal,
+      addOnsTotal: addOnsTotal ?? this.addOnsTotal,
+      totalPrice: totalPrice ?? this.totalPrice,
+      depositAmount: depositAmount ?? this.depositAmount,
+      remainingAmount: remainingAmount ?? this.remainingAmount,
+      amountPaid: amountPaid ?? this.amountPaid,
+      paymentOption: paymentOption ?? this.paymentOption,
       excelFilePath: excelFilePath ?? this.excelFilePath,
       quotedPrice: quotedPrice ?? this.quotedPrice,
       invoiceId: invoiceId ?? this.invoiceId,
@@ -132,6 +169,14 @@ class SchoolTripRequestEntity extends Equatable {
         specialRequirements,
         participants,
         addOns,
+        pricePerStudent,
+        ticketsTotal,
+        addOnsTotal,
+        totalPrice,
+        depositAmount,
+        remainingAmount,
+        amountPaid,
+        paymentOption,
         excelFilePath,
         quotedPrice,
         invoiceId,

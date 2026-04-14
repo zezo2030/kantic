@@ -7,6 +7,11 @@ import '../entities/trip_requests_filter.dart';
 abstract class TripsRepository {
   Future<String> createTripRequest(CreateTripRequestInput input);
 
+  Future<Map<String, dynamic>> getTripConfig({
+    String? branchId,
+    String? preferredDate,
+  });
+
   Future<SchoolTripRequestEntity> getTripRequest(String requestId);
 
   Future<List<SchoolTripRequestEntity>> getTripRequests(

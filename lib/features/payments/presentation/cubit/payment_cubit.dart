@@ -98,14 +98,19 @@ class PaymentCubit extends Cubit<PaymentState> {
           chargeId: intent.chargeId,
           paymentId: intent.paymentId,
           bookingId: booking.id,
-          amount: booking.totalPrice,
+          amount: intent.amount ?? booking.totalPrice,
         );
 
         // بدء التحقق الدوري من حالة الدفع بعد بدء الدفع
         _startPaymentStatusPolling();
+      } else if (intent.paymentId.isNotEmpty && method == 'credit_card') {
+        // الواجهة تفتح Moyasar (بطاقة داخل التطبيق) مثل طلب الرحلة
+        _paymentInProgress = false;
+        return;
+      } else if (intent.paymentId.isNotEmpty && method == 'credit_card') {
+        _paymentInProgress = false;
+        return;
       } else if (intent.paymentId.isNotEmpty) {
-        // Fallback: استخدام redirect URL مباشرة إذا لم يكن متاحاً
-        // يمكن إضافة منطق إضافي هنا إذا لزم الأمر
         emit(PaymentFailure('لم يتم الحصول على رابط الدفع'));
       } else {
         emit(PaymentFailure('لم يتم الحصول على بيانات الدفع'));
@@ -165,14 +170,15 @@ class PaymentCubit extends Cubit<PaymentState> {
           chargeId: intent.chargeId,
           paymentId: intent.paymentId,
           eventRequestId: eventRequest.id,
-          amount: eventRequest.quotedPrice ?? 0,
+          amount: intent.amount ?? eventRequest.quotedPrice ?? 0,
         );
 
         // بدء التحقق الدوري من حالة الدفع بعد بدء الدفع
         _startEventRequestPaymentStatusPolling();
+      } else if (intent.paymentId.isNotEmpty && method == 'credit_card') {
+        _paymentInProgress = false;
+        return;
       } else if (intent.paymentId.isNotEmpty) {
-        // Fallback: استخدام redirect URL مباشرة إذا لم يكن متاحاً
-        // يمكن إضافة منطق إضافي هنا إذا لزم الأمر
         emit(PaymentFailure('لم يتم الحصول على رابط الدفع'));
       } else {
         emit(PaymentFailure('لم يتم الحصول على بيانات الدفع'));
@@ -221,7 +227,7 @@ class PaymentCubit extends Cubit<PaymentState> {
         return;
       }
 
-      // استخدام Tap Checkout SDK داخل التطبيق
+      // استخدام Tap Checkout عند وجود رابط؛ وإلا Moyasar داخل التطبيق (مثل شحن المحفظة)
       if (intent.redirectUrl != null && intent.redirectUrl!.isNotEmpty) {
         // حفظ معلومات الدفع الحالية للاستخدام في polling
         _currentTripRequestId = tripRequestId;
@@ -233,11 +239,15 @@ class PaymentCubit extends Cubit<PaymentState> {
           chargeId: intent.chargeId,
           paymentId: intent.paymentId,
           tripRequestId: tripRequestId,
-          amount: amount,
+          amount: intent.amount ?? amount,
         );
 
         // بدء التحقق الدوري من حالة الدفع بعد بدء الدفع
         _startTripRequestPaymentStatusPolling();
+      } else if (intent.paymentId.isNotEmpty && method == 'credit_card') {
+        // الباك إند لا يُرجع redirectUrl؛ الواجهة تفتح CreditCard (Moyasar) يدوياً
+        _paymentInProgress = false;
+        return;
       } else if (intent.paymentId.isNotEmpty) {
         emit(PaymentFailure('لم يتم الحصول على رابط الدفع'));
       } else {
@@ -288,9 +298,12 @@ class PaymentCubit extends Cubit<PaymentState> {
           redirectUrl: intent.redirectUrl!,
           chargeId: intent.chargeId,
           paymentId: intent.paymentId,
-          amount: amount,
+          amount: intent.amount ?? amount,
         );
         _startSubscriptionPaymentPolling();
+      } else if (intent.paymentId.isNotEmpty && method == 'credit_card') {
+        _paymentInProgress = false;
+        return;
       } else if (intent.paymentId.isNotEmpty) {
         emit(PaymentFailure('لم يتم الحصول على رابط الدفع'));
       } else {
@@ -341,7 +354,7 @@ class PaymentCubit extends Cubit<PaymentState> {
           redirectUrl: intent.redirectUrl!,
           chargeId: intent.chargeId,
           paymentId: intent.paymentId,
-          amount: amount,
+          amount: intent.amount ?? amount,
         );
         _startOfferBookingPaymentPolling();
       } else if (intent.paymentId.isNotEmpty) {
