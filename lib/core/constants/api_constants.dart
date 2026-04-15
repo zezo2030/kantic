@@ -1,7 +1,7 @@
 class ApiConstants {
   // Base URL - Choose the appropriate one based on your setup:
   // For production server:
-  static const String baseUrl = 'http://192.168.1.5:3000/api/v1';
+  static const String baseUrl = 'http://192.168.1.3:3000/api/v1';
 
   // For Android emulator:
   // static const String baseUrl = 'http://10.0.2.2:3000/api/v1';
