@@ -14,6 +14,7 @@ import '../../domain/entities/booking_entity.dart';
 import 'package:get_it/get_it.dart';
 import '../widgets/price_breakdown_card.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/wallet_amount_format.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../domain/entities/quote_entity.dart';
 import 'dart:convert';
@@ -1098,7 +1099,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage>
                     title: Text('pay_with_wallet'.tr()),
                     subtitle: currentHasEnoughBalance
                         ? Text(
-                            '${'wallet_balance'.tr()}: ${currentBalance.toStringAsFixed(2)} ${'currency'.tr()}',
+                            '${'wallet_balance'.tr()}: ${formatWalletMoney(currentBalance, 'currency'.tr())}',
                           )
                         : Text(
                             'insufficient_balance'.tr(),

@@ -81,7 +81,8 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                       subscriptionPurchaseId: widget.purchaseId,
                       paymentId: state.intent.paymentId,
                       amount:
-                          state.intent.amount ?? _payAmountFromSnapshot(_purchase!),
+                          state.intent.amount ??
+                          _payAmountFromSnapshot(_purchase!),
                     ),
                   ),
                 );
@@ -93,9 +94,9 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
             }
           } else if (state is PaymentFailure) {
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message)),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(state.message)));
             }
           }
         },
@@ -121,10 +122,10 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                   child: CircularProgressIndicator(color: AppColors.primaryRed),
                 )
               : _error != null
-                  ? _buildError()
-                  : _purchase == null
-                      ? const SizedBox.shrink()
-                      : _buildContent(),
+              ? _buildError()
+              : _purchase == null
+              ? const SizedBox.shrink()
+              : _buildContent(),
           bottomNavigationBar: _purchase != null ? _buildBottomBar() : null,
         ),
       ),
@@ -138,7 +139,11 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Iconsax.warning_2, size: 48, color: AppColors.errorColor),
+            const Icon(
+              Iconsax.warning_2,
+              size: 48,
+              color: AppColors.errorColor,
+            ),
             const SizedBox(height: 16),
             Text(
               _error!,
@@ -155,11 +160,16 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryRed,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: Text(
                 'retry'.tr(),
-                style: const TextStyle(fontFamily: 'MontserratArabic', fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontFamily: 'MontserratArabic',
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -183,16 +193,16 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
               if (p.qrData != null && p.qrData!.isNotEmpty) {
                 _showQrDialog(context, p.qrData!);
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('no_qr_available'.tr())),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('no_qr_available'.tr())));
               }
             },
             onCopyId: () {
               Clipboard.setData(ClipboardData(text: p.id));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('id_copied'.tr())),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('id_copied'.tr())));
             },
           ),
           const SizedBox(height: 32),
@@ -206,8 +216,6 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
       ),
     );
   }
-
-
 
   Widget _buildHoursCard(SubscriptionPurchaseModel p) {
     final double progress = (p.totalHours == null || p.totalHours == 0)
@@ -237,7 +245,11 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                   color: AppColors.primaryRed.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Iconsax.timer_1, color: AppColors.primaryRed, size: 20),
+                child: const Icon(
+                  Iconsax.timer_1,
+                  color: AppColors.primaryRed,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Text(
@@ -277,8 +289,8 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                       progress > 0.3
                           ? AppColors.primaryRed
                           : progress > 0
-                              ? AppColors.warningColor
-                              : AppColors.errorColor,
+                          ? AppColors.warningColor
+                          : AppColors.errorColor,
                     ),
                     strokeCap: StrokeCap.round,
                   ),
@@ -324,8 +336,18 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStatItem('subscriptions_total_hours'.tr(), p.totalHours?.toStringAsFixed(p.totalHours! % 1 == 0 ? 0 : 1) ?? '—'),
-                Container(width: 1, height: 24, color: Colors.grey.withOpacity(0.3)),
+                _buildStatItem(
+                  'subscriptions_total_hours'.tr(),
+                  p.totalHours?.toStringAsFixed(
+                        p.totalHours! % 1 == 0 ? 0 : 1,
+                      ) ??
+                      '—',
+                ),
+                Container(
+                  width: 1,
+                  height: 24,
+                  color: Colors.grey.withOpacity(0.3),
+                ),
                 _buildStatItem(
                   'subscriptions_daily_limit'.tr(),
                   p.dailyHoursLimit != null
@@ -386,7 +408,9 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
             icon: Iconsax.card,
             label: 'payment_status'.tr(),
             value: p.paymentStatus.tr(),
-            valueColor: p.paymentStatus.toLowerCase() == 'paid' || p.paymentStatus.toLowerCase() == 'completed'
+            valueColor:
+                p.paymentStatus.toLowerCase() == 'paid' ||
+                    p.paymentStatus.toLowerCase() == 'completed'
                 ? AppColors.successColor
                 : AppColors.warningColor,
             isFirst: true,
@@ -450,7 +474,11 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Iconsax.scan_barcode, color: AppColors.primaryRed, size: 32),
+              const Icon(
+                Iconsax.scan_barcode,
+                color: AppColors.primaryRed,
+                size: 32,
+              ),
               const SizedBox(height: 12),
               Text(
                 'my_qr_code'.tr(),
@@ -492,12 +520,17 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryRed,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: Text(
                     'close'.tr(),
-                    style: const TextStyle(fontFamily: 'MontserratArabic', fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontFamily: 'MontserratArabic',
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -512,7 +545,13 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
     final st = p.status.toLowerCase();
     if (st.contains('cancel') || st.contains('refund')) return false;
     final ps = p.paymentStatus.toLowerCase().trim();
-    const paidStates = {'paid', 'completed', 'success', 'succeeded', 'complete'};
+    const paidStates = {
+      'paid',
+      'completed',
+      'success',
+      'succeeded',
+      'complete',
+    };
     return !paidStates.contains(ps);
   }
 
@@ -554,7 +593,9 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                       ? null
                       : () {
                           payments_di.initPayments();
-                          context.read<PaymentCubit>().payForSubscriptionPurchase(
+                          context
+                              .read<PaymentCubit>()
+                              .payForSubscriptionPurchase(
                                 subscriptionPurchaseId: widget.purchaseId,
                                 amount: _payAmountFromSnapshot(p),
                               );
@@ -594,8 +635,9 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        SubscriptionUsageLogsPage(purchaseId: widget.purchaseId),
+                    builder: (_) => SubscriptionUsageLogsPage(
+                      purchaseId: widget.purchaseId,
+                    ),
                   ),
                 );
               },
@@ -627,4 +669,3 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
     );
   }
 }
-

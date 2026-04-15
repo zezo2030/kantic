@@ -218,6 +218,44 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, bool>> forgotPasswordSendOtp({
+    required String phone,
+    String language = 'ar',
+  }) async {
+    try {
+      final result = await remoteDataSource.forgotPasswordSendOtp(
+        phone: phone,
+        language: language,
+      );
+      return Right(result);
+    } on DioException catch (e) {
+      return Left(e.toFailure());
+    } catch (e) {
+      return Left(UnknownFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> forgotPasswordReset({
+    required String phone,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final message = await remoteDataSource.forgotPasswordReset(
+        phone: phone,
+        otp: otp,
+        newPassword: newPassword,
+      );
+      return Right(message);
+    } on DioException catch (e) {
+      return Left(e.toFailure());
+    } catch (e) {
+      return Left(UnknownFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> deleteAccount() async {
     // #region agent log
     try {

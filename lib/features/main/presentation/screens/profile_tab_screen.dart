@@ -108,9 +108,21 @@ class ProfileTabScreen extends StatelessWidget {
 
   Widget _buildProfileContent(BuildContext context, user) {
     final theme = Theme.of(context);
+    final mediaQuery = MediaQuery.of(context);
+    // Matches `MainScreen` floating bottom nav `Positioned.bottom`.
+    final floatingNavBottomOffset = mediaQuery.padding.bottom > 0
+        ? mediaQuery.padding.bottom + 8.0
+        : 24.0;
+    // `_ModernBottomNavBar` pill height (padding + row + labels) + small gap.
+    const floatingNavBarHeight = 96.0;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        16 + floatingNavBottomOffset + floatingNavBarHeight,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

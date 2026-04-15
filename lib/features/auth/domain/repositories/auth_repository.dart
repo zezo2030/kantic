@@ -73,4 +73,15 @@ abstract class AuthRepository {
 
   // Delete user account
   Future<Either<Failure, void>> deleteAccount();
+
+  Future<Either<Failure, bool>> forgotPasswordSendOtp({
+    required String phone,
+    String language = 'ar',
+  });
+
+  Future<Either<Failure, String>> forgotPasswordReset({
+    required String phone,
+    required String otp,
+    required String newPassword,
+  });
 }

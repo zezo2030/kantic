@@ -26,6 +26,9 @@ class ApiConstants {
   static const String refreshTokenEndpoint = '/auth/refresh';
   static const String emailConfigEndpoint = '/auth/email-config';
   static const String updateLanguageEndpoint = '/auth/language';
+  static const String forgotPasswordSendOtpEndpoint =
+      '/auth/forgot-password/otp/send';
+  static const String forgotPasswordResetEndpoint = '/auth/forgot-password/reset';
 
   // User Profile Endpoints
   static const String updateProfileEndpoint = '/users/profile';

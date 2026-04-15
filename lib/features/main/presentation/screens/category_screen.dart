@@ -73,200 +73,224 @@ class _CategoryViewState extends State<_CategoryView> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
-
+  Widget _buildSearchHeader(BuildContext context, Color primaryColor) {
     return Container(
-      decoration: BoxDecoration(color: const Color(0xFFF8FAFC)),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(36),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Modern Header with Search and Filters
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'explore'.tr(),
+                style: const TextStyle(
+                  fontFamily: 'MontserratArabic',
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E293B),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              BlocBuilder<BranchesCubit, BranchesState>(
+                builder: (context, state) {
+                  return IconButton(
+                    onPressed: state.branches.isEmpty
+                        ? null
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BranchesMapPage(
+                                  branches: state.branches,
+                                ),
+                              ),
+                            );
+                          },
+                    style: IconButton.styleFrom(
+                      backgroundColor: primaryColor.withOpacity(0.1),
+                      foregroundColor: primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Iconsax.map_1),
+                    tooltip: 'view_on_map'.tr(),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(36),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: const Color(0xFFE2E8F0),
+                width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: TextField(
+              onChanged: (value) => setState(() => _searchQuery = value),
+              style: const TextStyle(
+                fontFamily: 'MontserratArabic',
+                fontSize: 15,
+                color: Color(0xFF334155),
+              ),
+              decoration: InputDecoration(
+                hintText: 'search_branches'.tr(),
+                hintStyle: const TextStyle(
+                  fontFamily: 'MontserratArabic',
+                  color: Color(0xFF94A3B8),
+                  fontSize: 14,
+                ),
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Icon(
+                    Iconsax.search_normal_1,
+                    color: primaryColor,
+                    size: 20,
+                  ),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'explore'.tr(),
-                      style: const TextStyle(
-                        fontFamily: 'MontserratArabic',
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    BlocBuilder<BranchesCubit, BranchesState>(
-                      builder: (context, state) {
-                        return IconButton(
-                          onPressed: state.branches.isEmpty
-                              ? null
-                              : () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => BranchesMapPage(
-                                        branches: state.branches,
-                                      ),
-                                    ),
-                                  );
-                                },
-                          style: IconButton.styleFrom(
-                            backgroundColor: primaryColor.withOpacity(0.1),
-                            foregroundColor: primaryColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Iconsax.map_1),
-                          tooltip: 'view_on_map'.tr(),
-                        );
-                      },
-                    ),
-                  ],
+                _buildFilterChip(
+                  label: 'all'.tr(),
+                  value: 'all',
+                  icon: Iconsax.element_4,
                 ),
-                const SizedBox(height: 16),
-                // Premium Search Bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: const Color(0xFFE2E8F0),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                    style: const TextStyle(
-                      fontFamily: 'MontserratArabic',
-                      fontSize: 15,
-                      color: Color(0xFF334155),
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'search_branches'.tr(),
-                      hintStyle: const TextStyle(
-                        fontFamily: 'MontserratArabic',
-                        color: Color(0xFF94A3B8), // slate-400
-                        fontSize: 14,
-                      ),
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        child: Icon(
-                          Iconsax.search_normal_1,
-                          color: primaryColor,
-                          size: 20,
-                        ),
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
+                const SizedBox(width: 10),
+                _buildFilterChip(
+                  label: 'open_now'.tr(),
+                  value: 'open',
+                  icon: Iconsax.clock,
                 ),
-                const SizedBox(height: 20),
-                // Modern Filter Chips
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: [
-                      _buildFilterChip(
-                        label: 'all'.tr(),
-                        value: 'all',
-                        icon: Iconsax.element_4,
-                      ),
-                      const SizedBox(width: 10),
-                      _buildFilterChip(
-                        label: 'open_now'.tr(),
-                        value: 'open',
-                        icon: Iconsax.clock,
-                      ),
-                      const SizedBox(width: 10),
-                      _buildFilterChip(
-                        label: 'capacity'.tr(),
-                        value: 'capacity',
-                        icon: Iconsax.people,
-                      ),
-                      const SizedBox(width: 10),
-                      _buildFilterChip(
-                        label: 'top_rating'.tr(),
-                        value: 'rating',
-                        icon: Iconsax.star1,
-                      ),
-                    ],
-                  ),
+                const SizedBox(width: 10),
+                _buildFilterChip(
+                  label: 'capacity'.tr(),
+                  value: 'capacity',
+                  icon: Iconsax.people,
+                ),
+                const SizedBox(width: 10),
+                _buildFilterChip(
+                  label: 'top_rating'.tr(),
+                  value: 'rating',
+                  icon: Iconsax.star1,
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // Branches List
-          Expanded(
-            child: BlocBuilder<BranchesCubit, BranchesState>(
-              builder: (context, state) {
-                if (state.loading && state.branches.isEmpty) {
-                  return Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-                    ),
-                  );
-                }
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).primaryColor;
+    final double bottomOverlap =
+        MediaQuery.paddingOf(context).bottom + 100;
 
-                if (state.error != null && state.branches.isEmpty) {
-                  return _buildErrorState(state.error!);
-                }
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
+      child: BlocBuilder<BranchesCubit, BranchesState>(
+        builder: (context, state) {
+          if (state.loading && state.branches.isEmpty) {
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+              ),
+            );
+          }
 
-                final filteredBranches = _filterBranches(state.branches);
+          List<Widget> sliversAfterHeader() {
+            if (state.error != null && state.branches.isEmpty) {
+              return [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildErrorState(state.error!),
+                ),
+              ];
+            }
 
-                if (filteredBranches.isEmpty) {
-                  return _buildEmptyState();
-                }
+            final filteredBranches = _filterBranches(state.branches);
 
-                return RefreshIndicator(
-                  onRefresh: () => context.read<BranchesCubit>().loadAll(),
-                  color: primaryColor,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: filteredBranches.length,
-                    itemBuilder: (context, index) {
+            if (filteredBranches.isEmpty) {
+              return [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildEmptyState(),
+                ),
+              ];
+            }
+
+            return [
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(0, 8, 0, bottomOverlap),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
                       final b = filteredBranches[index];
-                      // Animation placeholder (can be improved with staggered animations)
                       return BranchListCard(
                         branch: b,
                         onTap: () => _openBranch(context, b.id),
                       );
                     },
+                    childCount: filteredBranches.length,
                   ),
-                );
-              },
+                ),
+              ),
+            ];
+          }
+
+          return RefreshIndicator(
+            onRefresh: () => context.read<BranchesCubit>().loadAll(),
+            color: primaryColor,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _buildSearchHeader(context, primaryColor),
+                ),
+                ...sliversAfterHeader(),
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

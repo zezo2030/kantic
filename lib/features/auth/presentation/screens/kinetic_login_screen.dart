@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart'
     as easy_localization;
+import '../../../../core/routes/app_route_generator.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
 
@@ -272,7 +273,12 @@ class _KineticLoginScreenState extends State<KineticLoginScreen> {
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.forgotPasswordKinetic,
+                                    );
+                                  },
                                   child: Text(
                                     easy_localization.tr('forgot_password'),
                                     style: TextStyle(

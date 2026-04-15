@@ -47,7 +47,9 @@ class TripRequestCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: primaryColor.withOpacity(0.08),
                         shape: BoxShape.circle,
@@ -125,63 +127,6 @@ class TripRequestCard extends StatelessWidget {
                     ),
                   ],
                 ),
-
-                if (request.quotedPrice != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Iconsax.empty_wallet,
-                                size: 18,
-                                color: Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  tr('trip_quoted_price_label'),
-                                  style: const TextStyle(
-                                    fontFamily: 'MontserratArabic',
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          tr(
-                            'trip_quoted_price',
-                            args: [request.quotedPrice!.toStringAsFixed(2)],
-                          ),
-                          style: TextStyle(
-                            fontFamily: 'MontserratArabic',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ],
             ),
           ),

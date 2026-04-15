@@ -35,6 +35,24 @@ class OtpSent extends AuthState {
   List<Object> get props => [phone];
 }
 
+class ForgotPasswordOtpSent extends AuthState {
+  final String phone;
+
+  const ForgotPasswordOtpSent({required this.phone});
+
+  @override
+  List<Object> get props => [phone];
+}
+
+class ForgotPasswordResetSuccess extends AuthState {
+  final String message;
+
+  const ForgotPasswordResetSuccess({this.message = ''});
+
+  @override
+  List<Object> get props => [message];
+}
+
 class OtpVerified extends AuthState {
   final AuthResponseEntity authResponse;
 

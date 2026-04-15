@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:get_it/get_it.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/wallet_amount_format.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../cubit/wallet_cubit.dart';
 import '../cubit/wallet_state.dart';
@@ -239,7 +240,7 @@ class WalletScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '${wallet.balance.toStringAsFixed(2)} ${wallet.currency}',
+                formatWalletMoney(wallet.balance, wallet.currency),
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -262,7 +263,11 @@ class WalletScreen extends StatelessWidget {
                       child: _buildBalanceInfo(
                         context,
                         'total_earned_amount'.tr(),
-                        '+${wallet.totalEarned.toStringAsFixed(2)} ${wallet.currency}',
+                        formatWalletMoneyWithSign(
+                          wallet.totalEarned,
+                          wallet.currency,
+                          '+',
+                        ),
                         Iconsax.arrow_down,
                         Colors.greenAccent,
                       ),
@@ -277,7 +282,11 @@ class WalletScreen extends StatelessWidget {
                       child: _buildBalanceInfo(
                         context,
                         'total_spent_amount'.tr(),
-                        '-${wallet.totalSpent.toStringAsFixed(2)} ${wallet.currency}',
+                        formatWalletMoneyWithSign(
+                          wallet.totalSpent,
+                          wallet.currency,
+                          '-',
+                        ),
                         Iconsax.arrow_up_1,
                         Colors.redAccent.shade100,
                       ),
@@ -561,7 +570,11 @@ class WalletScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${isDeposit ? '+' : '-'}${transaction.amount.toStringAsFixed(2)} ${'currency'.tr()}',
+                formatWalletMoneyWithSign(
+                  transaction.amount,
+                  'currency'.tr(),
+                  isDeposit ? '+' : '-',
+                ),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: color,

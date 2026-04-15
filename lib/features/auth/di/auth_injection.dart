@@ -17,6 +17,8 @@ import '../domain/usecases/update_profile_usecase.dart';
 import '../domain/usecases/refresh_profile_usecase.dart';
 import '../domain/usecases/update_language_usecase.dart';
 import '../domain/usecases/delete_account_usecase.dart';
+import '../domain/usecases/forgot_password_send_otp_usecase.dart';
+import '../domain/usecases/forgot_password_reset_usecase.dart';
 import '../presentation/cubit/auth_cubit.dart';
 import '../../home/di/home_injection.dart';
 import '../../booking/di/booking_injection.dart';
@@ -62,6 +64,8 @@ Future<void> init() async {
   sl.registerLazySingleton(() => RefreshProfileUseCase(repository: sl()));
   sl.registerLazySingleton(() => UpdateLanguageUseCase(repository: sl()));
   sl.registerLazySingleton(() => DeleteAccountUseCase(repository: sl()));
+  sl.registerLazySingleton(() => ForgotPasswordSendOtpUseCase(sl()));
+  sl.registerLazySingleton(() => ForgotPasswordResetUseCase(sl()));
 
   // Cubit
   sl.registerFactory(
@@ -79,6 +83,8 @@ Future<void> init() async {
       refreshProfileUseCase: sl(),
       updateLanguageUseCase: sl(),
       deleteAccountUseCase: sl(),
+      forgotPasswordSendOtpUseCase: sl(),
+      forgotPasswordResetUseCase: sl(),
     ),
   );
 

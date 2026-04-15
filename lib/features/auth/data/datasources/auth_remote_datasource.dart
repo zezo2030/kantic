@@ -55,6 +55,17 @@ abstract class AuthRemoteDataSource {
   Future<bool> updateLanguage(String language);
 
   Future<void> deleteAccount();
+
+  Future<bool> forgotPasswordSendOtp({
+    required String phone,
+    String language = 'ar',
+  });
+
+  Future<String> forgotPasswordReset({
+    required String phone,
+    required String otp,
+    required String newPassword,
+  });
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -389,6 +400,51 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       throw Exception('Update language failed: ${e.toString()}');
     }
+  }
+
+  @override
+  Future<bool> forgotPasswordSendOtp({
+    required String phone,
+    String language = 'ar',
+  }) async {
+    final response = await dio.post(
+      ApiConstants.forgotPasswordSendOtpEndpoint,
+      data: {'phone': phone, 'language': language},
+    );
+    final dynamic data = response.data;
+    if (data is Map<String, dynamic>) {
+      final inner = data['data'];
+      if (inner is Map<String, dynamic>) {
+        return inner['success'] == true;
+      }
+      return data['success'] == true;
+    }
+    return false;
+  }
+
+  @override
+  Future<String> forgotPasswordReset({
+    required String phone,
+    required String otp,
+    required String newPassword,
+  }) async {
+    final response = await dio.post(
+      ApiConstants.forgotPasswordResetEndpoint,
+      data: {
+        'phone': phone,
+        'otp': otp,
+        'newPassword': newPassword,
+      },
+    );
+    final dynamic data = response.data;
+    if (data is Map<String, dynamic>) {
+      final inner = data['data'];
+      if (inner is Map<String, dynamic>) {
+        return inner['message']?.toString() ?? '';
+      }
+      return data['message']?.toString() ?? '';
+    }
+    return '';
   }
 
   @override

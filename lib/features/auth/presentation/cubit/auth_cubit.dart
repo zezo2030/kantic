@@ -18,6 +18,8 @@ import '../../domain/usecases/update_profile_usecase.dart';
 import '../../domain/usecases/refresh_profile_usecase.dart';
 import '../../domain/usecases/update_language_usecase.dart';
 import '../../domain/usecases/delete_account_usecase.dart';
+import '../../domain/usecases/forgot_password_send_otp_usecase.dart';
+import '../../domain/usecases/forgot_password_reset_usecase.dart';
 import '../../data/models/update_profile_dto.dart';
 import '../../../../core/errors/failures.dart';
 import 'auth_state.dart';
@@ -36,6 +38,8 @@ class AuthCubit extends Cubit<AuthState> {
   final RefreshProfileUseCase refreshProfileUseCase;
   final UpdateLanguageUseCase updateLanguageUseCase;
   final DeleteAccountUseCase deleteAccountUseCase;
+  final ForgotPasswordSendOtpUseCase forgotPasswordSendOtpUseCase;
+  final ForgotPasswordResetUseCase forgotPasswordResetUseCase;
   final SecureStorageService _storageService =
       GetIt.instance<SecureStorageService>();
 
@@ -59,7 +63,51 @@ class AuthCubit extends Cubit<AuthState> {
     required this.refreshProfileUseCase,
     required this.updateLanguageUseCase,
     required this.deleteAccountUseCase,
+    required this.forgotPasswordSendOtpUseCase,
+    required this.forgotPasswordResetUseCase,
   }) : super(AuthInitial());
+
+  Future<void> forgotPasswordSendOtp({
+    required String phone,
+    String language = 'ar',
+  }) async {
+    emit(AuthLoading());
+
+    final result = await forgotPasswordSendOtpUseCase(
+      phone: phone,
+      language: language,
+    );
+
+    result.fold(
+      (failure) => emit(AuthError(message: failure.message)),
+      (success) {
+        if (success) {
+          emit(ForgotPasswordOtpSent(phone: phone));
+        } else {
+          emit(AuthError(message: 'operation_failed'));
+        }
+      },
+    );
+  }
+
+  Future<void> forgotPasswordReset({
+    required String phone,
+    required String otp,
+    required String newPassword,
+  }) async {
+    emit(AuthLoading());
+
+    final result = await forgotPasswordResetUseCase(
+      phone: phone,
+      otp: otp,
+      newPassword: newPassword,
+    );
+
+    result.fold(
+      (failure) => emit(AuthError(message: failure.message)),
+      (message) => emit(ForgotPasswordResetSuccess(message: message)),
+    );
+  }
 
   // Login with phone and password
   Future<void> login({required String phone, required String password}) async {

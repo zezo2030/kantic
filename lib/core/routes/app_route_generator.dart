@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 import '../../features/auth/presentation/screens/complete_registration_screen.dart';
+import '../../features/auth/presentation/screens/kinetic_forgot_password_new_password_screen.dart';
+import '../../features/auth/presentation/screens/kinetic_forgot_password_otp_screen.dart';
+import '../../features/auth/presentation/screens/kinetic_forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/kinetic_login_screen.dart';
 import '../../features/auth/presentation/screens/kinetic_otp_login_screen.dart';
 import '../../features/auth/presentation/screens/kinetic_otp_verify_screen.dart';
@@ -37,6 +40,10 @@ class AppRoutes {
   static const register = '/register';
   static const otpVerify = '/otp-verify';
   static const otpVerifyKinetic = '/otp-verify-kinetic';
+  static const forgotPasswordKinetic = '/forgot-password-kinetic';
+  static const forgotPasswordOtpKinetic = '/forgot-password-otp-kinetic';
+  static const forgotPasswordNewPasswordKinetic =
+      '/forgot-password-new-kinetic';
   static const completeRegistration = '/complete-registration';
   static const profile = '/profile';
   static const main = '/main';
@@ -95,6 +102,28 @@ class AppRouteGenerator {
           page: KineticOtpVerifyScreen(
             phone: args?['phone'] ?? '',
             isRegistration: args?['isRegistration'] ?? false,
+          ),
+        );
+      case AppRoutes.forgotPasswordKinetic:
+        return _buildSoftFadeRoute(
+          settings: settings,
+          page: const KineticForgotPasswordScreen(),
+        );
+      case AppRoutes.forgotPasswordOtpKinetic:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return _buildSoftFadeRoute(
+          settings: settings,
+          page: KineticForgotPasswordOtpScreen(
+            phone: args?['phone'] ?? '',
+          ),
+        );
+      case AppRoutes.forgotPasswordNewPasswordKinetic:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return _buildSoftFadeRoute(
+          settings: settings,
+          page: KineticForgotPasswordNewPasswordScreen(
+            phone: args?['phone'] ?? '',
+            otp: args?['otp'] ?? '',
           ),
         );
       case AppRoutes.completeRegistration:

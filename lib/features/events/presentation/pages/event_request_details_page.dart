@@ -12,6 +12,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/share_utils.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/utils/event_time_slot_display.dart';
+import '../../../../core/utils/wallet_amount_format.dart';
 import '../../../auth/di/auth_injection.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
@@ -1561,7 +1562,7 @@ class _EventRequestDetailsPageState extends State<EventRequestDetailsPage>
                         iconColor: AppColors.luxuryGold,
                         title: 'pay_with_wallet'.tr(),
                         subtitle: currentHasEnoughBalance
-                            ? '${'wallet_balance'.tr()}: ${currentBalance.toStringAsFixed(2)} ${'currency'.tr()}'
+                            ? '${'wallet_balance'.tr()}: ${formatWalletMoney(currentBalance, 'currency'.tr())}'
                             : 'insufficient_balance'.tr(),
                         enabled: currentHasEnoughBalance,
                         onTap: currentHasEnoughBalance

@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/wallet_amount_format.dart';
 import '../../../auth/di/auth_injection.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
@@ -1124,7 +1125,7 @@ class _OfferCheckoutPageState extends State<OfferCheckoutPage> {
                         iconColor: AppColors.luxuryGold,
                         title: 'pay_with_wallet'.tr(),
                         subtitle: currentHasEnough
-                            ? '${'wallet_balance'.tr()}: ${currentBalance.toStringAsFixed(2)} ${'currency'.tr()}'
+                            ? '${'wallet_balance'.tr()}: ${formatWalletMoney(currentBalance, 'currency'.tr())}'
                             : 'insufficient_balance'.tr(),
                         enabled: currentHasEnough,
                         onTap: currentHasEnough
