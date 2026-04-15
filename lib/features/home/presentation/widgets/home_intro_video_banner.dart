@@ -1,12 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:chewie/chewie.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:iconsax/iconsax.dart';
+import 'package:url_launcher/url_launcher.dart' as launcher;
 
 import '../../../../core/theme/app_colors.dart';
+import '../pages/video_player_page.dart';
+import '../pages/youtube_player_page.dart';
 
-/// Inline intro video from CMS (`/home` → `introVideo`), replaces static promo strip.
-class HomeIntroVideoBanner extends StatefulWidget {
+/// Intro video from CMS (`/home` → `introVideo`): normal card; tap opens in-app player.
+class HomeIntroVideoBanner extends StatelessWidget {
   final String videoUrl;
   final String? coverUrl;
 
@@ -16,161 +19,204 @@ class HomeIntroVideoBanner extends StatefulWidget {
     this.coverUrl,
   });
 
-  @override
-  State<HomeIntroVideoBanner> createState() => _HomeIntroVideoBannerState();
-}
-
-class _HomeIntroVideoBannerState extends State<HomeIntroVideoBanner> {
-  VideoPlayerController? _video;
-  ChewieController? _chewie;
-
-  @override
-  void initState() {
-    super.initState();
-    _init();
+  static bool _isCloudinaryVideo(String? url) {
+    if (url == null || url.isEmpty) return false;
+    return url.contains('cloudinary.com') || url.contains('res.cloudinary.com');
   }
 
-  @override
-  void didUpdateWidget(covariant HomeIntroVideoBanner oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.videoUrl != widget.videoUrl) {
-      _disposePlayers();
-      _init();
+  static String? _extractYoutubeVideoId(String url) {
+    if (url.isEmpty) return null;
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return null;
+
+    if (uri.host.contains('youtube.com') &&
+        uri.pathSegments.contains('watch')) {
+      return uri.queryParameters['v'];
     }
+    if (uri.host.contains('youtu.be')) {
+      return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
+    }
+    if (uri.host.contains('youtube.com') &&
+        uri.pathSegments.contains('shorts')) {
+      final shortsIndex = uri.pathSegments.indexOf('shorts');
+      if (shortsIndex >= 0 && shortsIndex < uri.pathSegments.length - 1) {
+        return uri.pathSegments[shortsIndex + 1];
+      }
+    }
+    if (uri.pathSegments.contains('embed')) {
+      final embedIndex = uri.pathSegments.indexOf('embed');
+      if (embedIndex >= 0 && embedIndex < uri.pathSegments.length - 1) {
+        return uri.pathSegments[embedIndex + 1];
+      }
+    }
+    return null;
   }
 
-  Future<void> _init() async {
-    if (widget.videoUrl.isEmpty) return;
+  static bool _looksLikeStreamableFile(String url) {
+    final lower = url.toLowerCase();
+    return lower.contains('.mp4') ||
+        lower.contains('.mov') ||
+        lower.contains('.webm') ||
+        lower.contains('.m3u8');
+  }
 
-    final controller = VideoPlayerController.networkUrl(
-      Uri.parse(widget.videoUrl),
-      httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
-    );
+  static String? _thumbnailFromVideoUrl(String videoUrl) {
+    if (_isCloudinaryVideo(videoUrl)) {
+      try {
+        final uri = Uri.parse(videoUrl);
+        if (uri.pathSegments.contains('upload')) {
+          final uploadIndex = uri.pathSegments.indexOf('upload');
+          if (uploadIndex >= 0 && uploadIndex < uri.pathSegments.length - 1) {
+            final pathSegments = List<String>.from(uri.pathSegments);
+            pathSegments.insert(
+              uploadIndex + 1,
+              'w_800,h_450,c_fill,q_auto,f_auto',
+            );
+            final thumbnailPath = pathSegments.join('/');
+            return '${uri.scheme}://${uri.host}/$thumbnailPath';
+          }
+        }
+        if (videoUrl.contains('.mp4') ||
+            videoUrl.contains('.mov') ||
+            videoUrl.contains('.webm')) {
+          return videoUrl.replaceAll(RegExp(r'\.(mp4|mov|webm)$'), '.jpg');
+        }
+      } catch (_) {}
+      return null;
+    }
 
-    try {
-      await controller.initialize();
-    } catch (_) {
-      await controller.dispose();
-      if (mounted) setState(() {});
+    final videoId = _extractYoutubeVideoId(videoUrl);
+    if (videoId != null && videoId.isNotEmpty) {
+      return 'https://img.youtube.com/vi/$videoId/maxresdefault.jpg';
+    }
+    return null;
+  }
+
+  String? _displayImageUrl() {
+    if (coverUrl != null && coverUrl!.isNotEmpty) return coverUrl;
+    return _thumbnailFromVideoUrl(videoUrl);
+  }
+
+  Future<void> _openPlayer(BuildContext context) async {
+    if (videoUrl.isEmpty) return;
+
+    final youtubeId = _extractYoutubeVideoId(videoUrl);
+    if (youtubeId != null && youtubeId.isNotEmpty) {
+      if (!context.mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => YoutubePlayerPage(
+            videoId: youtubeId,
+            fallbackUrl: videoUrl,
+          ),
+        ),
+      );
       return;
     }
 
-    if (!mounted) {
-      await controller.dispose();
+    if (_isCloudinaryVideo(videoUrl) || _looksLikeStreamableFile(videoUrl)) {
+      if (!context.mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => VideoPlayerPage(videoUrl: videoUrl),
+        ),
+      );
       return;
     }
 
-    _chewie = ChewieController(
-      videoPlayerController: controller,
-      autoPlay: false,
-      looping: false,
-      showControls: true,
-      aspectRatio: controller.value.aspectRatio,
-      materialProgressColors: ChewieProgressColors(
-        playedColor: AppColors.primaryRed,
-        handleColor: AppColors.primaryRed,
-        backgroundColor: Colors.white24,
-        bufferedColor: Colors.white38,
-      ),
-      errorBuilder: (_, __) => const Center(
-        child: Icon(Icons.error_outline, color: Colors.white54, size: 40),
-      ),
-    );
-
-    setState(() {
-      _video = controller;
-    });
-  }
-
-  void _disposePlayers() {
-    _chewie?.dispose();
-    _chewie = null;
-    _video = null;
-  }
-
-  @override
-  void dispose() {
-    _disposePlayers();
-    super.dispose();
+    final launchUri = Uri.tryParse(videoUrl);
+    if (launchUri == null) return;
+    if (await launcher.canLaunchUrl(launchUri)) {
+      await launcher.launchUrl(
+        launchUri,
+        mode: launcher.LaunchMode.externalApplication,
+      );
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('unable_to_open_video'.tr())),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.videoUrl.isEmpty) {
+    if (videoUrl.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final hasPlayer =
-        _chewie != null && _video != null && _video!.value.isInitialized;
+    final imageUrl = _displayImageUrl();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.luxuryShadowMedium,
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+      child: Card(
+        elevation: 0,
+        color: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: AppColors.luxuryTextHint.withValues(alpha: 0.2)),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _openPlayer(context),
           child: AspectRatio(
-            aspectRatio: hasPlayer ? _video!.value.aspectRatio : 16 / 9,
-            child: hasPlayer
-                ? ColoredBox(
-                    color: Colors.black,
-                    child: Chewie(controller: _chewie!),
+            aspectRatio: 16 / 9,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (imageUrl != null && imageUrl.isNotEmpty)
+                  CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => ColoredBox(
+                      color: AppColors.luxurySurfaceVariant,
+                      child: Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primaryRed.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) => ColoredBox(
+                      color: AppColors.luxurySurfaceVariant,
+                      child: Icon(
+                        Iconsax.video,
+                        size: 48,
+                        color: AppColors.luxuryTextHint,
+                      ),
+                    ),
                   )
-                : _coverOrPlaceholder(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _coverOrPlaceholder() {
-    final cover = widget.coverUrl;
-    if (cover != null && cover.isNotEmpty) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          CachedNetworkImage(
-            imageUrl: cover,
-            fit: BoxFit.cover,
-            placeholder: (_, __) => Container(color: AppColors.luxurySurfaceVariant),
-            errorWidget: (_, __, ___) =>
-                Container(color: AppColors.luxurySurfaceVariant),
-          ),
-          Container(
-            color: Colors.black26,
-            child: const Center(
-              child: SizedBox(
-                width: 36,
-                height: 36,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
+                else
+                  ColoredBox(
+                    color: AppColors.luxurySurfaceVariant,
+                    child: Icon(
+                      Iconsax.video,
+                      size: 48,
+                      color: AppColors.luxuryTextHint,
+                    ),
+                  ),
+                Container(color: Colors.black26),
+                const Center(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(14),
+                      child: Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 40,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ),
-        ],
-      );
-    }
-
-    return Container(
-      color: AppColors.luxurySurfaceVariant,
-      child: const Center(
-        child: SizedBox(
-          width: 36,
-          height: 36,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.primaryRed,
           ),
         ),
       ),

@@ -110,9 +110,9 @@ class WalletScreen extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             message,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -121,7 +121,7 @@ class WalletScreen extends StatelessWidget {
               context.read<WalletCubit>().loadWalletWithTransactions();
             },
             icon: const Icon(Iconsax.refresh, color: Colors.white, size: 20),
-            text: 'retry'.tr(),
+            text: 'retry',
             width: 150,
             useGradient: true,
           ),
@@ -340,62 +340,63 @@ class WalletScreen extends StatelessWidget {
   }
 
   Widget _buildRechargeAction(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceColor,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openRechargeScreen(context),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColorLight,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceColor,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadowColorLight,
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Iconsax.wallet_add_1, color: Colors.white, size: 28),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'recharge_wallet'.tr(),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'recharge_wallet_desc'.tr(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+                child: const Icon(
+                  Iconsax.wallet_add_1,
+                  color: Colors.white,
+                  size: 28,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'recharge_wallet'.tr(),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'recharge_wallet_desc'.tr(),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          CustomButton(
-            onPressed: () => _openRechargeScreen(context),
-            text: '',
-            icon: const Icon(Iconsax.arrow_right_1, color: Colors.white, size: 24),
-            width: 56,
-            height: 56,
-            useGradient: true,
-            padding: EdgeInsets.zero,
-            showShadow: false,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -451,9 +452,9 @@ class WalletScreen extends StatelessWidget {
             Text(
               'transactions_empty_desc'.tr(),
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -485,7 +486,9 @@ class WalletScreen extends StatelessWidget {
 
     final color = isDeposit ? AppColors.successColor : AppColors.errorColor;
     final icon = isDeposit ? Iconsax.arrow_down_2 : Iconsax.arrow_up_2;
-    final statusColor = isSuccess ? AppColors.successColor : AppColors.errorColor;
+    final statusColor = isSuccess
+        ? AppColors.successColor
+        : AppColors.errorColor;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -524,7 +527,9 @@ class WalletScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  DateFormat('MMM dd, yyyy • HH:mm').format(transaction.createdAt),
+                  DateFormat(
+                    'MMM dd, yyyy • HH:mm',
+                  ).format(transaction.createdAt),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -533,7 +538,11 @@ class WalletScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Iconsax.card, size: 14, color: AppColors.textHint),
+                      const Icon(
+                        Iconsax.card,
+                        size: 14,
+                        color: AppColors.textHint,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         transaction.method!,

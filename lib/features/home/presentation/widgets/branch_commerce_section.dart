@@ -385,25 +385,19 @@ class _OfferProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gradient = _isTicket
-        ? const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF7B2FF7), Color(0xFF9D46FF), Color(0xFFBF6FFF)],
-          )
-        : const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF00897B), Color(0xFF00ACC1), Color(0xFF26C6DA)],
-          );
+    const accentColor = AppColors.primaryRed;
+    final categoryLabel = _isTicket ? 'ticket'.tr() : 'hours'.tr();
+    final categoryIcon = _isTicket ? Iconsax.ticket : Iconsax.clock;
+
+    const backgroundGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)],
+    );
 
     final resolvedUrl = product.imageUrl != null && product.imageUrl!.isNotEmpty
         ? resolveFileUrl(product.imageUrl!)
         : null;
-
-    final accentColor = _isTicket ? const Color(0xFF7B2FF7) : const Color(0xFF00897B);
-    final categoryLabel = _isTicket ? 'ticket'.tr() : 'hours'.tr();
-    final categoryIcon = _isTicket ? Iconsax.ticket : Iconsax.clock;
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -416,7 +410,7 @@ class _OfferProductCard extends StatelessWidget {
         width: 185,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          gradient: resolvedUrl == null ? gradient : null,
+          gradient: resolvedUrl == null ? backgroundGradient : null,
           boxShadow: [
             BoxShadow(
               color: accentColor.withOpacity(0.3),
@@ -551,7 +545,7 @@ class _OfferProductCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: AppColors.primaryRed,
                         ),
                       ),
                     ),

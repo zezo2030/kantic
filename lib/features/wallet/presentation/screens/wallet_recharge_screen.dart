@@ -43,12 +43,9 @@ class _WalletRechargeScreenState extends State<WalletRechargeScreen> {
           final amount = state.amount;
 
           if (paymentId != null && paymentId.isNotEmpty && amount != null) {
-            _openMoyasarCheckout(
-              context,
-              paymentId: paymentId,
-              amount: amount,
-            );
-          } else if (state.redirectUrl != null && state.redirectUrl!.isNotEmpty) {
+            _openMoyasarCheckout(context, paymentId: paymentId, amount: amount);
+          } else if (state.redirectUrl != null &&
+              state.redirectUrl!.isNotEmpty) {
             _openPaymentUrl(context, state.redirectUrl!);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +89,10 @@ class _WalletRechargeScreenState extends State<WalletRechargeScreen> {
               ),
             ),
             leading: IconButton(
-              icon: const Icon(Iconsax.arrow_left_2, color: AppColors.textPrimary),
+              icon: const Icon(
+                Iconsax.arrow_left_2,
+                color: AppColors.textPrimary,
+              ),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ),
@@ -143,7 +143,11 @@ class _WalletRechargeScreenState extends State<WalletRechargeScreen> {
               color: Colors.white.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Iconsax.wallet_add_1, color: Colors.white, size: 28),
+            child: const Icon(
+              Iconsax.wallet_add_1,
+              color: Colors.white,
+              size: 28,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -187,13 +191,13 @@ class _WalletRechargeScreenState extends State<WalletRechargeScreen> {
         TextFormField(
           controller: _amountController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
           decoration: InputDecoration(
             labelText: 'amount_sar'.tr(),
-            prefixIcon: const Icon(Iconsax.dollar_circle, color: AppColors.primaryRed),
+            prefixIcon: const Icon(
+              Iconsax.dollar_circle,
+              color: AppColors.primaryRed,
+            ),
             suffixText: 'sar'.tr(),
             suffixStyle: const TextStyle(
               color: AppColors.textSecondary,
@@ -207,11 +211,17 @@ class _WalletRechargeScreenState extends State<WalletRechargeScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: AppColors.primaryRed, width: 2),
+              borderSide: const BorderSide(
+                color: AppColors.primaryRed,
+                width: 2,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: AppColors.errorColor, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.errorColor,
+                width: 1.5,
+              ),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
@@ -292,7 +302,9 @@ class _WalletRechargeScreenState extends State<WalletRechargeScreen> {
   Widget _buildRechargeButton(BuildContext context, bool isLoading) {
     return CustomButton(
       onPressed: isLoading ? null : () => _onRechargePressed(context),
-      text: isLoading ? 'loading'.tr() : 'recharge_now'.tr(),
+      text: isLoading ? 'loading' : 'recharge_now',
+      height: 56, // Added height for a more premium look
+      showShadow: false, // Removed shadow as requested
       icon: isLoading
           ? const SizedBox(
               width: 20,
@@ -320,9 +332,9 @@ class _WalletRechargeScreenState extends State<WalletRechargeScreen> {
         const SizedBox(width: 8),
         Text(
           'secure_payment_note'.tr(),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );
@@ -331,9 +343,7 @@ class _WalletRechargeScreenState extends State<WalletRechargeScreen> {
   void _onRechargePressed(BuildContext context) {
     if (!_formKey.currentState!.validate()) return;
     final amount = double.parse(_amountController.text.trim());
-    context.read<WalletCubit>().rechargeWallet(
-      amount: amount,
-    );
+    context.read<WalletCubit>().rechargeWallet(amount: amount);
   }
 
   Future<void> _openMoyasarCheckout(
@@ -346,10 +356,7 @@ class _WalletRechargeScreenState extends State<WalletRechargeScreen> {
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: walletCubit,
-          child: WalletMoyasarPaymentPage(
-            paymentId: paymentId,
-            amount: amount,
-          ),
+          child: WalletMoyasarPaymentPage(paymentId: paymentId, amount: amount),
         ),
       ),
     );

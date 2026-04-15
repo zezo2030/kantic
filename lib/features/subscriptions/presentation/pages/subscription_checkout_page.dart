@@ -194,6 +194,10 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
                                       _buildHeroCard(context),
                                       const SizedBox(height: 16),
                                       _buildIncludedDetailsCard(context),
+                                      if (_loyaltyQuoteMap != null) ...[
+                                        const SizedBox(height: 16),
+                                        _buildSubscriptionLoyaltyCard(context),
+                                      ],
                                       const SizedBox(height: 16),
                                       _buildBillingCard(context),
                                       const SizedBox(height: 16),
@@ -460,6 +464,129 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Map<String, dynamic>? get _loyaltyQuoteMap {
+    final raw = _quote?['loyalty'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  int _loyaltyQuoteInt(String key, {int fallback = 0}) {
+    final map = _loyaltyQuoteMap;
+    if (map == null) return fallback;
+    final v = map[key];
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v?.toString() ?? '') ?? fallback;
+  }
+
+  bool _loyaltyQuoteEligible() {
+    final v = _loyaltyQuoteMap?['isEligibleForFreePurchase'];
+    if (v is bool) return v;
+    if (v is String) return v.toLowerCase() == 'true';
+    return v == 1;
+  }
+
+  Widget _buildSubscriptionLoyaltyCard(BuildContext context) {
+    final completed = _loyaltyQuoteInt('completedPaidPurchases');
+    final remaining = _loyaltyQuoteInt('purchasesUntilNextFree');
+    final eligible = _loyaltyQuoteEligible();
+
+    return _buildSurfaceCard(
+      context,
+      title: 'subscription_loyalty_title'.tr(),
+      subtitle: 'subscription_loyalty_subtitle'.tr(),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildLoyaltyStatTile(
+                  context,
+                  label: 'subscription_loyalty_completed'.tr(),
+                  value: '$completed',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildLoyaltyStatTile(
+                  context,
+                  label: 'subscription_loyalty_remaining'.tr(),
+                  value: '$remaining',
+                ),
+              ),
+            ],
+          ),
+          if (eligible) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.successColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.successColor.withOpacity(0.35),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Iconsax.gift, color: AppColors.successColor, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'subscription_loyalty_free_this_round'.tr(),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoyaltyStatTile(
+    BuildContext context, {
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.greyLight,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary,
+                ),
+          ),
         ],
       ),
     );

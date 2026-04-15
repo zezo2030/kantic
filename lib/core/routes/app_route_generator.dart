@@ -27,6 +27,7 @@ import '../../features/offer_products/presentation/pages/my_offer_bookings_page.
 import '../../features/offer_products/presentation/pages/offer_booking_details_page.dart';
 import '../../features/home/presentation/pages/offers_landing_page.dart';
 import '../../features/loyalty/presentation/screens/loyalty_screen.dart';
+import '../../features/booking/presentation/pages/my_hall_tickets_page.dart';
 
 class AppRoutes {
   static const welcome = '/welcome';
@@ -51,6 +52,7 @@ class AppRoutes {
   static const myOfferBookings = '/my-offer-bookings';
   static const offerBookingDetails = '/offer-booking-details';
   static const loyalty = '/loyalty';
+  static const myHallTickets = '/my-hall-tickets';
 }
 
 class AppRouteGenerator {
@@ -165,6 +167,11 @@ class AppRouteGenerator {
         return _buildProtectedRoute(
           settings: settings,
           page: const MyOfferBookingsPage(),
+        );
+      case AppRoutes.myHallTickets:
+        return _buildProtectedRoute(
+          settings: settings,
+          page: const MyHallTicketsPage(),
         );
       case AppRoutes.subscriptionDetails:
         final args = settings.arguments as Map<String, dynamic>?;

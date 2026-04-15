@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
-import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../events/presentation/pages/my_event_requests_page.dart';
 import '../../di/trips_injection.dart' as trips_di;
 import '../cubit/trip_requests_cubit.dart';
@@ -127,10 +126,12 @@ class _TripRequestsPageState extends State<TripRequestsPage> {
                                       Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
-                                          color: theme.primaryColor
-                                              .withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(10),
+                                          color: theme.primaryColor.withOpacity(
+                                            0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
                                         child: Icon(
                                           Iconsax.calendar_1,
@@ -157,8 +158,7 @@ class _TripRequestsPageState extends State<TripRequestsPage> {
                                             Text(
                                               state.dateFilter != null
                                                   ? DateFormat.yMMMMd(
-                                                      context.locale
-                                                          .toString(),
+                                                      context.locale.toString(),
                                                     ).format(state.dateFilter!)
                                                   : 'select_date'.tr(),
                                               style: TextStyle(
@@ -175,8 +175,8 @@ class _TripRequestsPageState extends State<TripRequestsPage> {
                                       ),
                                       if (state.dateFilter != null)
                                         IconButton(
-                                          onPressed: () => _cubit
-                                              .clearPreferredDateFilter(),
+                                          onPressed: () =>
+                                              _cubit.clearPreferredDateFilter(),
                                           icon: const Icon(
                                             Iconsax.close_circle,
                                             color: Color(0xFF94A3B8),
@@ -260,7 +260,8 @@ class _TripRequestsPageState extends State<TripRequestsPage> {
                       hasScrollBody: false,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: state.requests.isNotEmpty &&
+                        child:
+                            state.requests.isNotEmpty &&
                                 state.dateFilter != null
                             ? _buildNoTripsForDateState(theme)
                             : _buildEmptyState(theme),
@@ -399,15 +400,6 @@ class _TripRequestsPageState extends State<TripRequestsPage> {
             fontWeight: FontWeight.w500,
             color: Color(0xFF64748B),
             height: 1.5,
-          ),
-        ),
-        const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          child: CustomButton(
-            text: 'create_trip_request'.tr(),
-            onPressed: () =>
-                Navigator.pushNamed(context, '/school-trips/create'),
           ),
         ),
       ],

@@ -27,6 +27,7 @@ import '../../notifications/di/notifications_injection.dart';
 import '../../subscriptions/di/subscriptions_injection.dart';
 import '../../offer_products/di/offer_products_injection.dart';
 import '../../loyalty/di/loyalty_injection.dart';
+import '../../tickets/di/tickets_injection.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -86,6 +87,7 @@ Future<void> init() async {
 
   // Initialize Booking feature
   initBookingInjection();
+  initTickets();
 
   // Initialize Trips feature
   initTripsInjection();

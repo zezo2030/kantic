@@ -7,16 +7,15 @@ import '../../../payments/di/payments_injection.dart' as payments_di;
 import '../../../payments/domain/usecases/confirm_payment_usecase.dart';
 import '../../../payments/presentation/widgets/moyasar_checkout_view.dart';
 
-/// Card payment for a private event request when the backend returns no Tap redirect URL.
-class EventRequestMoyasarPaymentPage extends StatelessWidget {
-  const EventRequestMoyasarPaymentPage({
+class OfferMoyasarPaymentPage extends StatelessWidget {
+  const OfferMoyasarPaymentPage({
     super.key,
-    required this.eventRequestId,
+    required this.offerBookingId,
     required this.paymentId,
     required this.amount,
   });
 
-  final String eventRequestId;
+  final String offerBookingId;
   final String paymentId;
   final double amount;
 
@@ -24,17 +23,17 @@ class EventRequestMoyasarPaymentPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final paymentConfig = buildMoyasarPaymentConfig(
       amount: amount,
-      description: 'Private event request',
+      description: 'Offer booking payment',
       metadata: {
-        'flow': 'event_request',
-        'eventRequestId': eventRequestId,
+        'flow': 'offer_booking',
+        'offerBookingId': offerBookingId,
         'paymentId': paymentId,
       },
     );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('credit_card'.tr()),
+        title: Text('offer_checkout'.tr()),
         backgroundColor: AppColors.surfaceColor,
       ),
       body: SafeArea(
@@ -53,7 +52,7 @@ class EventRequestMoyasarPaymentPage extends StatelessWidget {
                   } catch (_) {}
                   final useCase = payments_di.sl<ConfirmPaymentUseCase>();
                   final confirm = await useCase(
-                    eventRequestId: eventRequestId,
+                    offerBookingId: offerBookingId,
                     paymentId: paymentId,
                     chargeId: result.id,
                   );

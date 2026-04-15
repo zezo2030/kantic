@@ -10,6 +10,7 @@ import '../domain/usecases/check_availability_usecase.dart';
 import '../domain/usecases/check_server_health_usecase.dart';
 import '../domain/usecases/get_hall_slots_usecase.dart';
 import '../presentation/cubit/booking_cubit.dart';
+import '../presentation/cubit/my_hall_tickets_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -55,4 +56,6 @@ void initBookingInjection() {
       getBranchSlotsUseCase: sl<GetBranchSlotsUseCase>(),
     ),
   );
+
+  sl.registerFactory<MyHallTicketsCubit>(() => MyHallTicketsCubit());
 }

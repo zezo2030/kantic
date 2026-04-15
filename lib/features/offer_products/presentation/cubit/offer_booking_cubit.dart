@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/create_offer_booking_usecase.dart';
@@ -39,6 +40,15 @@ class OfferBookingFlowError extends OfferBookingFlowState {
   List<Object?> get props => [message];
 }
 
+class OfferBookingFlowConflict extends OfferBookingFlowState {
+  final String message;
+
+  OfferBookingFlowConflict(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+
 class OfferBookingCubit extends Cubit<OfferBookingFlowState> {
   final GetOfferQuoteUseCase quoteUseCase;
   final CreateOfferBookingUseCase createUseCase;
@@ -60,7 +70,11 @@ class OfferBookingCubit extends Cubit<OfferBookingFlowState> {
       );
       emit(OfferBookingFlowQuoteReady(q));
     } catch (e) {
-      emit(OfferBookingFlowError(e.toString()));
+      if (_isConflict(e)) {
+        emit(OfferBookingFlowConflict(_normalizeErrorMessage(e)));
+        return;
+      }
+      emit(OfferBookingFlowError(_normalizeErrorMessage(e)));
     }
   }
 
@@ -80,7 +94,34 @@ class OfferBookingCubit extends Cubit<OfferBookingFlowState> {
       );
       emit(OfferBookingFlowCreated(r));
     } catch (e) {
-      emit(OfferBookingFlowError(e.toString()));
+      if (_isConflict(e)) {
+        emit(OfferBookingFlowConflict(_normalizeErrorMessage(e)));
+        return;
+      }
+      emit(OfferBookingFlowError(_normalizeErrorMessage(e)));
     }
+  }
+
+  bool _isConflict(Object error) {
+    if (error is! DioException) return false;
+    if (error.response?.statusCode != 409) return false;
+    return true;
+  }
+
+  String _normalizeErrorMessage(Object error) {
+    if (error is DioException) {
+      final responseData = error.response?.data;
+      if (responseData is Map<String, dynamic>) {
+        final message = responseData['message']?.toString().trim();
+        if (message != null && message.isNotEmpty) {
+          return message;
+        }
+      }
+      final message = error.message?.trim();
+      if (message != null && message.isNotEmpty) {
+        return message;
+      }
+    }
+    return error.toString().replaceFirst('Exception: ', '').trim();
   }
 }

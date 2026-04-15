@@ -95,7 +95,7 @@ class SubscriptionTicketWidget extends StatelessWidget {
 
   Widget _buildStubSection(BuildContext context, List<Color> gradientColors) {
     final daysLeft = purchase.endsAt.difference(DateTime.now()).inDays;
-    
+
     return Container(
       width: 100,
       decoration: BoxDecoration(
@@ -114,11 +114,7 @@ class SubscriptionTicketWidget extends StatelessWidget {
               color: Colors.white.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Iconsax.crown,
-              color: Colors.white,
-              size: 28,
-            ),
+            child: const Icon(Iconsax.crown, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 12),
           Text(
@@ -237,7 +233,10 @@ class SubscriptionTicketWidget extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(20),
@@ -285,7 +284,11 @@ class SubscriptionTicketWidget extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(width: 1, height: 20, color: Colors.grey.withOpacity(0.3)),
+                Container(
+                  width: 1,
+                  height: 20,
+                  color: Colors.grey.withOpacity(0.3),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -354,7 +357,10 @@ class SubscriptionTicketWidget extends StatelessWidget {
                     onViewQr();
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E3A8A), // Match the stub gradient
                       borderRadius: BorderRadius.circular(8),
@@ -369,7 +375,11 @@ class SubscriptionTicketWidget extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Iconsax.scan_barcode, size: 14, color: Colors.white),
+                        const Icon(
+                          Iconsax.scan_barcode,
+                          size: 14,
+                          color: Colors.white,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'QR',

@@ -245,7 +245,7 @@ class _LoyaltyScreenContentState extends State<_LoyaltyScreenContent>
               );
             },
             child: Align(
-              alignment: Alignment.centerLeft,
+              alignment: Alignment.centerRight,
               child: Text(
                 'loyalty_history'.tr(),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -276,11 +276,11 @@ class _LoyaltyScreenContentState extends State<_LoyaltyScreenContent>
           width: double.infinity,
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            gradient: AppColors.luxuryGoldGradient,
+            gradient: AppColors.primaryGradient,
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: AppColors.luxuryGold.withOpacity(0.4),
+                color: AppColors.primaryRed.withOpacity(0.4),
                 blurRadius: 24,
                 offset: const Offset(0, 12),
               ),
@@ -423,7 +423,7 @@ class _LoyaltyScreenContentState extends State<_LoyaltyScreenContent>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: AppColors.luxuryGoldGradient,
+                gradient: AppColors.primaryGradient,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
@@ -629,14 +629,14 @@ class _LoyaltyScreenContentState extends State<_LoyaltyScreenContent>
                     decoration: BoxDecoration(
                       gradient: info.canRedeem
                           ? AppColors.successGradient
-                          : AppColors.luxuryGoldGradient,
+                          : AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(7),
                       boxShadow: [
                         BoxShadow(
                           color:
                               (info.canRedeem
                                       ? AppColors.successColor
-                                      : AppColors.luxuryGold)
+                                      : AppColors.primaryRed)
                                   .withOpacity(0.4),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
@@ -720,6 +720,8 @@ class _LoyaltyScreenContentState extends State<_LoyaltyScreenContent>
             ? () => _showBranchSelectionSheet(context)
             : null,
         text: isLoading ? 'loading' : 'redeem_free_ticket',
+        height: 56, // Increased height for a more premium feel
+        showShadow: false, // Removed shadow as requested
         icon: isLoading
             ? const SizedBox(
                 width: 20,
@@ -787,11 +789,11 @@ class _LoyaltyScreenContentState extends State<_LoyaltyScreenContent>
           Container(
             padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
-              gradient: AppColors.luxuryGoldGradient,
+              gradient: AppColors.primaryGradient,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.luxuryGold.withOpacity(0.3),
+                  color: AppColors.primaryRed.withOpacity(0.3),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -1199,7 +1201,7 @@ class _BranchSelectionSheetState extends State<_BranchSelectionSheet> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    gradient: AppColors.luxuryGoldGradient,
+                    gradient: AppColors.primaryGradient,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(

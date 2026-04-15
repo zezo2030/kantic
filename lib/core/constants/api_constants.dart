@@ -10,7 +10,7 @@ class ApiConstants {
   // static const String baseUrl = 'http://localhost:3000/api/v1';
 
   // For physical device on same network (replace with your computer's IP):
-  //   static const String baseUrl = 'https://kinetic-app-sa.org/api/v1';
+  // static const String baseUrl = 'https://kinetic-app-sa.org/api/v1';
 
   static void printEndpoints() {}
 
@@ -106,4 +106,14 @@ class ApiConstants {
   // Moyasar publishable key used by Flutter checkout UI.
   static const String moyasarPublishableKey =
       'pk_test_YQE7QedoWj3Mw7xyfh44HaN1WWwRdioQoeer6foL';
+
+  // Apple Pay configuration for Moyasar checkout (iOS only).
+  static const String moyasarApplePayMerchantId = String.fromEnvironment(
+    'MOYASAR_APPLE_PAY_MERCHANT_ID',
+    defaultValue: 'merchant.com.kantic.app',
+  );
+  static const String moyasarApplePayLabel = String.fromEnvironment(
+    'MOYASAR_APPLE_PAY_LABEL',
+    defaultValue: 'Kantic',
+  );
 }

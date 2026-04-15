@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/url_utils.dart';
 import '../../data/models/subscription_plan_model.dart';
 import 'subscription_checkout_page.dart';
 
@@ -37,10 +35,6 @@ class SubscriptionPlanDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedUrl = plan.imageUrl != null && plan.imageUrl!.isNotEmpty
-        ? resolveFileUrl(plan.imageUrl!)
-        : null;
-
     return Scaffold(
       backgroundColor: AppColors.surfaceColor,
       appBar: AppBar(
@@ -58,36 +52,7 @@ class SubscriptionPlanDetailsPage extends StatelessWidget {
         ),
       ),
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            if (resolvedUrl != null) ...[
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: CachedNetworkImage(
-                  imageUrl: resolvedUrl,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(color: AppColors.luxurySurfaceVariant),
-                  errorWidget: (_, __, ___) => Container(color: AppColors.luxurySurfaceVariant),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            _buildBody(context),
-          ],
-        ),
+        child: _buildBody(context),
       ),
       bottomNavigationBar: _buildBottomBar(context),
     );

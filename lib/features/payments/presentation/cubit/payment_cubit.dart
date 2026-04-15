@@ -357,6 +357,9 @@ class PaymentCubit extends Cubit<PaymentState> {
           amount: intent.amount ?? amount,
         );
         _startOfferBookingPaymentPolling();
+      } else if (intent.paymentId.isNotEmpty && method == 'credit_card') {
+        _paymentInProgress = false;
+        return;
       } else if (intent.paymentId.isNotEmpty) {
         emit(PaymentFailure('لم يتم الحصول على رابط الدفع'));
       } else {

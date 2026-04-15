@@ -104,9 +104,7 @@ class _ActivityCarouselState extends State<ActivityCarousel> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(
-          SnackBar(content: Text('unable_to_open_video'.tr())),
-        );
+        ).showSnackBar(SnackBar(content: Text('unable_to_open_video'.tr())));
       }
     }
   }

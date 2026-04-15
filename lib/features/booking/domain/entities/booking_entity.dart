@@ -1,6 +1,21 @@
 // Booking Entity - Domain Layer
 import 'package:equatable/equatable.dart';
 
+class BookingTicketRef extends Equatable {
+  final String id;
+  final String status;
+  final Map<String, dynamic>? metadata;
+
+  const BookingTicketRef({
+    required this.id,
+    required this.status,
+    this.metadata,
+  });
+
+  @override
+  List<Object?> get props => [id, status, metadata];
+}
+
 class BookingEntity extends Equatable {
   final String id;
   final String userId;
@@ -18,6 +33,10 @@ class BookingEntity extends Equatable {
   final String? cancellationReason;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final Map<String, dynamic>? metadata;
+  final String? branchNameAr;
+  final String? branchNameEn;
+  final List<BookingTicketRef> ticketRefs;
 
   const BookingEntity({
     required this.id,
@@ -36,6 +55,10 @@ class BookingEntity extends Equatable {
     this.cancellationReason,
     required this.createdAt,
     required this.updatedAt,
+    this.metadata,
+    this.branchNameAr,
+    this.branchNameEn,
+    this.ticketRefs = const [],
   });
 
   @override
@@ -56,5 +79,9 @@ class BookingEntity extends Equatable {
         cancellationReason,
         createdAt,
         updatedAt,
+        metadata,
+        branchNameAr,
+        branchNameEn,
+        ticketRefs,
       ];
 }

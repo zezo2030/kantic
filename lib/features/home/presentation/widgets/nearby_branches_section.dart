@@ -152,10 +152,13 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Title with Icon
-          Expanded(
+          // Title with Icon is now wrapped in a Flexible to allow View All to stay on the far end
+          Flexible(
+            flex: 2,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -177,18 +180,19 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
+                Flexible(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'nearby_branches'.tr(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppColors.luxuryTextPrimary,
+                              fontSize: 18,
                             ),
                       ),
                       Text(
@@ -196,8 +200,9 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.luxuryTextSecondary,
-                        ),
+                              color: AppColors.luxuryTextSecondary,
+                              fontSize: 12,
+                            ),
                       ),
                     ],
                   ),
@@ -206,24 +211,29 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
             ),
           ),
 
-          // View All Button
+          // View All Button - Pushed to the far end
           if (widget.onViewAll != null)
-            Flexible(
-              child: TextButton.icon(
-                onPressed: widget.onViewAll,
-                icon: const Icon(Icons.arrow_forward, size: 16),
-                label: Text(
-                  'view_all'.tr(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).primaryColor,
-                  textStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+            TextButton(
+              onPressed: widget.onViewAll,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: Theme.of(context).primaryColor,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'view_all'.tr(),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_ios, size: 10),
+                ],
               ),
             ),
         ],
@@ -314,32 +324,48 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                if (distance != null)
+                              ],
+                            ),
+                            if (distance != null) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
-                                      vertical: 2,
+                                      vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors
-                                          .luxuryRedGradient.colors.first
-                                          .withOpacity(0.1),
+                                      color: AppColors.primaryRed.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: AppColors.primaryRed.withOpacity(0.2),
+                                        width: 0.5,
+                                      ),
                                     ),
-                                    child: Text(
-                                      'distance_km'.tr(
-                                        args: [distance.toStringAsFixed(1)],
-                                      ),
-                                      style: TextStyle(
-                                        color: AppColors.luxuryDeepRed,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.navigation,
+                                          size: 10,
+                                          color: AppColors.primaryRed,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${distance.toStringAsFixed(1)} ${'km'.tr()}',
+                                          style: TextStyle(
+                                            color: AppColors.primaryRed,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                              ],
-                            ),
+                                ],
+                              ),
+                            ],
                             const SizedBox(height: 8),
                             Wrap(
                               spacing: 8,
@@ -383,9 +409,7 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
                                       ),
                                       const SizedBox(width: 2),
                                       Text(
-                                        'capacity'.tr(
-                                          args: ['${branch.capacity}'],
-                                        ),
+                                        '${'capacity'.tr()}: ${branch.capacity}',
                                         style: TextStyle(
                                           color: AppColors.luxuryTextSecondary,
                                           fontSize: 10,

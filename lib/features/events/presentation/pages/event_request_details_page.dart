@@ -1310,13 +1310,15 @@ class _EventRequestDetailsPageState extends State<EventRequestDetailsPage>
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(
-                                      'qr_code'.tr(),
-                                      style: const TextStyle(
-                                        fontFamily: 'MontserratArabic',
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF1E293B),
+                                    Expanded(
+                                      child: Text(
+                                        'qr_code'.tr(),
+                                        style: const TextStyle(
+                                          fontFamily: 'MontserratArabic',
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF1E293B),
+                                        ),
                                       ),
                                     ),
                                   ],

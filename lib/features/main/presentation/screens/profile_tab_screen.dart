@@ -246,11 +246,12 @@ class ProfileTabScreen extends StatelessWidget {
                                       const SizedBox(width: 6),
                                       Text(
                                         '${user.wallet!.loyaltyPoints} ${'points'.tr()}',
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                       ),
                                       const SizedBox(width: 4),
                                       Icon(
@@ -416,6 +417,15 @@ class ProfileTabScreen extends StatelessWidget {
             subtitle: 'my_subscriptions_subtitle'.tr(),
             onTap: () =>
                 Navigator.pushNamed(context, AppRoutes.mySubscriptions),
+          ),
+          const Divider(height: 24),
+          _buildSettingTile(
+            context,
+            icon: Iconsax.ticket,
+            title: 'my_hall_tickets'.tr(),
+            subtitle: 'my_hall_tickets_subtitle'.tr(),
+            onTap: () =>
+                Navigator.pushNamed(context, AppRoutes.myHallTickets),
           ),
           const Divider(height: 24),
           _buildSettingTile(
@@ -943,9 +953,7 @@ class ProfileTabScreen extends StatelessWidget {
                           );
                         } else {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(
+                            ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('cannot_open_whatsapp'.tr()),
                               ),
@@ -975,9 +983,7 @@ class ProfileTabScreen extends StatelessWidget {
                           );
                         } else {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(
+                            ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('cannot_open_messenger'.tr()),
                               ),
@@ -1007,9 +1013,7 @@ class ProfileTabScreen extends StatelessWidget {
                           );
                         } else {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(
+                            ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('cannot_open_facebook'.tr()),
                               ),
@@ -1067,9 +1071,7 @@ class ProfileTabScreen extends StatelessWidget {
                           );
                         } else {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(
+                            ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('cannot_open_telegram'.tr()),
                               ),

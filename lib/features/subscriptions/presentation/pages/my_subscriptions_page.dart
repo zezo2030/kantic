@@ -46,7 +46,11 @@ class MySubscriptionsPage extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Iconsax.warning_2, size: 48, color: AppColors.errorColor),
+                    const Icon(
+                      Iconsax.warning_2,
+                      size: 48,
+                      color: AppColors.errorColor,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       state.message,
@@ -57,7 +61,8 @@ class MySubscriptionsPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () => context.read<MySubscriptionsCubit>().refresh(),
+                      onPressed: () =>
+                          context.read<MySubscriptionsCubit>().refresh(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryRed,
                         foregroundColor: Colors.white,
@@ -76,10 +81,14 @@ class MySubscriptionsPage extends StatelessWidget {
                 return _buildEmptyState();
               }
               return RefreshIndicator(
-                onRefresh: () async => context.read<MySubscriptionsCubit>().refresh(),
+                onRefresh: () async =>
+                    context.read<MySubscriptionsCubit>().refresh(),
                 color: AppColors.primaryRed,
                 child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   itemCount: state.items.length + 1,
                   separatorBuilder: (_, __) => const SizedBox(height: 16),
                   itemBuilder: (context, i) {
@@ -89,7 +98,8 @@ class MySubscriptionsPage extends StatelessWidget {
                       }
                       return Center(
                         child: TextButton(
-                          onPressed: () => context.read<MySubscriptionsCubit>().loadMore(),
+                          onPressed: () =>
+                              context.read<MySubscriptionsCubit>().loadMore(),
                           child: Text(
                             'load_more'.tr(),
                             style: const TextStyle(
@@ -177,120 +187,140 @@ class _SubscriptionCard extends StatelessWidget {
           builder: (_) => SubscriptionDetailsPage(purchaseId: purchase.id),
         ),
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // Top Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.primaryRed.withOpacity(0.05)
-                    : isExpired
-                        ? AppColors.errorColor.withOpacity(0.05)
-                        : Colors.grey.withOpacity(0.05),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isActive ? AppColors.primaryRed : Colors.grey,
-                      borderRadius: BorderRadius.circular(12),
+      child:
+          Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
                     ),
-                    child: const Icon(Iconsax.ticket, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          purchase.planTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'MontserratArabic',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Iconsax.calendar_1, size: 14, color: AppColors.textHint),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${dateFormat.format(purchase.startedAt)} - ${dateFormat.format(purchase.endsAt)}',
-                              style: const TextStyle(
-                                fontFamily: 'MontserratArabic',
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Bottom Section
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _StatusPill(
-                    label: isActive
-                        ? 'active'.tr()
-                        : isExpired
-                            ? 'expired'.tr()
-                            : purchase.status,
-                    isActive: isActive,
-                    isExpired: isExpired,
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        'subscription_details'.tr(),
-                        style: const TextStyle(
-                          fontFamily: 'MontserratArabic',
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryRed,
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Top Section
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? AppColors.primaryRed.withOpacity(0.05)
+                            : isExpired
+                            ? AppColors.errorColor.withOpacity(0.05)
+                            : Colors.grey.withOpacity(0.05),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      const Icon(Iconsax.arrow_left_2, size: 16, color: AppColors.primaryRed),
-                    ],
-                  ),
-                ],
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? AppColors.primaryRed
+                                  : Colors.grey,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Iconsax.ticket,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  purchase.planTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'MontserratArabic',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Iconsax.calendar_1,
+                                      size: 14,
+                                      color: AppColors.textHint,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${dateFormat.format(purchase.startedAt)} - ${dateFormat.format(purchase.endsAt)}',
+                                      style: const TextStyle(
+                                        fontFamily: 'MontserratArabic',
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Bottom Section
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _StatusPill(
+                            label: isActive
+                                ? 'active'.tr()
+                                : isExpired
+                                ? 'expired'.tr()
+                                : purchase.status,
+                            isActive: isActive,
+                            isExpired: isExpired,
+                          ),
+                          Row(
+                            children: [
+                              Text(
+                                'subscription_details'.tr(),
+                                style: const TextStyle(
+                                  fontFamily: 'MontserratArabic',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryRed,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Iconsax.arrow_left_2,
+                                size: 16,
+                                color: AppColors.primaryRed,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+              .animate()
+              .fadeIn(delay: Duration(milliseconds: 100 * index))
+              .slideY(
+                begin: 0.2,
+                end: 0,
+                curve: Curves.easeOutCubic,
+                duration: 500.ms,
               ),
-            ),
-          ],
-        ),
-      ).animate().fadeIn(delay: Duration(milliseconds: 100 * index)).slideY(
-            begin: 0.2,
-            end: 0,
-            curve: Curves.easeOutCubic,
-            duration: 500.ms,
-          ),
     );
   }
 }
@@ -311,8 +341,8 @@ class _StatusPill extends StatelessWidget {
     final color = isActive
         ? const Color(0xFF66BB6A)
         : isExpired
-            ? const Color(0xFFE57373)
-            : const Color(0xFFFFB74D);
+        ? const Color(0xFFE57373)
+        : const Color(0xFFFFB74D);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
