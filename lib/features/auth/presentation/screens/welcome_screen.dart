@@ -18,17 +18,11 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen>
     with TickerProviderStateMixin {
-  late AnimationController _floatController;
   late AnimationController _particleController;
 
   @override
   void initState() {
     super.initState();
-    _floatController = AnimationController(
-      duration: const Duration(milliseconds: 2400),
-      vsync: this,
-    )..repeat(reverse: true);
-
     _particleController = AnimationController(
       duration: const Duration(milliseconds: 12000),
       vsync: this,
@@ -37,7 +31,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   void dispose() {
-    _floatController.dispose();
     _particleController.dispose();
     super.dispose();
   }
@@ -144,27 +137,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   children: [
                                     SizedBox(height: screenHeight * 0.08),
 
-                                    AnimatedBuilder(
-                                          animation: _floatController,
-                                          builder: (context, child) {
-                                            final offset =
-                                                sin(
-                                                  _floatController.value *
-                                                      pi *
-                                                      2,
-                                                ) *
-                                                6;
-                                            return Transform.translate(
-                                              offset: Offset(0, offset),
-                                              child: child,
-                                            );
-                                          },
-                                          child: Image.asset(
-                                            'assets/imgs/kinetic.png',
-                                            width: 170,
-                                            fit: BoxFit.contain,
-                                          ),
-                                        )
+                                    Image.asset(
+                                      'assets/imgs/kinetic.png',
+                                      width: 170,
+                                      fit: BoxFit.contain,
+                                    )
                                         .animate()
                                         .fadeIn(
                                           duration: 800.ms,
