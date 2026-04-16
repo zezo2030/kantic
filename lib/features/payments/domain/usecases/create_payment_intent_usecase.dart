@@ -15,6 +15,7 @@ class CreatePaymentIntentUseCase {
     String? offerBookingId,
     String? offerProductId,
     bool? acceptedTerms,
+    Map<String, dynamic>? eventRequestPayload,
     required String method,
   }) {
     return repository.createIntent(
@@ -26,7 +27,9 @@ class CreatePaymentIntentUseCase {
       offerBookingId: offerBookingId,
       offerProductId: offerProductId,
       acceptedTerms: acceptedTerms,
+      eventRequestPayload: eventRequestPayload,
       method: method,
     );
   }
 }
+

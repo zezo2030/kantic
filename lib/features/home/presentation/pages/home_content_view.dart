@@ -24,6 +24,60 @@ import '../widgets/home_intro_video_banner.dart';
 class HomeContentView extends StatelessWidget {
   const HomeContentView({super.key});
 
+  Widget _buildSectionHeader(BuildContext context, String titleKey, String subKey, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: AppColors.luxuryRedGradient,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.luxuryDeepRed.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titleKey.tr(),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.luxuryTextPrimary,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  subKey.tr(),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.luxuryTextSecondary,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<HomeCubit, HomeState>(
@@ -74,7 +128,13 @@ class HomeContentView extends StatelessWidget {
                   // Banner Carousel
                   if (state.data.banners.isNotEmpty)
                     SliverToBoxAdapter(
-                      child: BannerCarousel(banners: state.data.banners),
+                      child: Column(
+                        children: [
+                          _buildSectionHeader(context, 'latest_updates', 'discover_whats_new', Icons.campaign_rounded),
+                          const SizedBox(height: 12),
+                          BannerCarousel(banners: state.data.banners),
+                        ],
+                      ),
                     ),
 
                   const SliverToBoxAdapter(child: SizedBox(height: 8)),
@@ -134,8 +194,14 @@ class HomeContentView extends StatelessWidget {
                   // Activities Section
                   if (state.data.activities.isNotEmpty)
                     SliverToBoxAdapter(
-                      child: ActivityCarousel(
-                        activities: state.data.activities,
+                      child: Column(
+                        children: [
+                          _buildSectionHeader(context, 'our_activities', 'join_our_events', Icons.local_activity_rounded),
+                          const SizedBox(height: 12),
+                          ActivityCarousel(
+                            activities: state.data.activities,
+                          ),
+                        ],
                       ),
                     ),
 
@@ -170,8 +236,15 @@ class HomeContentView extends StatelessWidget {
                   // Organizing Branches Section
                   if (state.data.organizingBranches.isNotEmpty)
                     SliverToBoxAdapter(
-                      child: OrganizingBranchCarousel(
-                        organizingBranches: state.data.organizingBranches,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader(context, 'organizing_branches', 'discover_organizers', Icons.business_rounded),
+                          const SizedBox(height: 12),
+                          OrganizingBranchCarousel(
+                            organizingBranches: state.data.organizingBranches,
+                          ),
+                        ],
                       ),
                     ),
 

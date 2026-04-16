@@ -4,13 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:moyasar/moyasar.dart';
 
 import '../../../auth/di/auth_injection.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
 import '../../../branches/data/branches_api.dart';
 import '../../../branches/data/branches_repository.dart';
 import '../../../home/data/models/branch_model.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/routes/app_route_generator.dart';
 import '../../../../core/utils/event_time_slot_display.dart';
+import '../../../payments/di/payments_injection.dart' as payments_di;
+import '../../../payments/domain/usecases/confirm_payment_usecase.dart';
+import '../../../payments/presentation/widgets/moyasar_checkout_view.dart';
+import '../../../wallet/presentation/cubit/wallet_cubit.dart';
+import '../../../wallet/presentation/cubit/wallet_state.dart';
+import '../../../../core/utils/wallet_amount_format.dart';
+import 'package:get_it/get_it.dart';
 import '../cubit/event_request_cubit.dart';
 import '../cubit/event_request_state.dart';
 import 'event_request_details_page.dart';
@@ -65,7 +76,6 @@ class _CreateEventRequestWizardBodyState
 
   bool _termsAccepted = false;
   String _paymentOption = 'full';
-  bool _decorated = false;
   int _persons = 10;
 
   static const int _fixedDurationHours = 2;
@@ -504,7 +514,37 @@ class _CreateEventRequestWizardBodyState
       value: _cubit,
       child: BlocListener<EventRequestCubit, EventRequestState>(
         listener: (context, state) {
-          if (state is EventRequestCreated) {
+          if (state is EventRequestPaymentReady) {
+            // Pay-First: redirect to Moyasar to complete payment or confirm wallet
+            HapticFeedback.mediumImpact();
+            final paymentAmount = state.amount;
+            final paymentId = state.paymentId;
+            final eventPayload = state.eventPayload;
+            final method = state.paymentMethod;
+
+            if (method == 'wallet') {
+              _confirmWalletPayment(context, paymentId);
+              return;
+            }
+
+            try {
+              payments_di.initPayments();
+            } catch (_) {}
+            Navigator.of(context).push(
+              MaterialPageRoute<bool>(
+                builder: (_) => _EventMoyasarPaymentPage(
+                  paymentId: paymentId,
+                  amount: paymentAmount,
+                  eventPayload: eventPayload,
+                ),
+              ),
+            ).then((paid) {
+              if (!context.mounted) return;
+              if (paid == true) {
+                _showSuccessAndPop(context, paymentId);
+              }
+            });
+          } else if (state is EventRequestCreated) {
             HapticFeedback.heavyImpact();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -528,7 +568,6 @@ class _CreateEventRequestWizardBodyState
                     initialAddonsTotal: _addonsSubtotal().toDouble(),
                     initialPaymentOption: _paymentOption,
                     initialSelectedTimeSlot: _selectedTimeSlot,
-                    initialDecorated: _decorated,
                     autoStartPayment: true,
                   ),
                 ),
@@ -737,7 +776,7 @@ class _CreateEventRequestWizardBodyState
                     children: [
                       Text(
                         isLastStep
-                            ? 'submit_request'.tr()
+                            ? 'pay_and_send_request'.tr()
                             : 'continue_step'.tr(),
                         style: TextStyle(
                           fontFamily: 'MontserratArabic',
@@ -750,7 +789,7 @@ class _CreateEventRequestWizardBodyState
                       ),
                       const SizedBox(width: 8),
                       Icon(
-                        isLastStep ? Iconsax.send_1 : Iconsax.arrow_right_1,
+                        isLastStep ? Iconsax.wallet_3 : Iconsax.arrow_right_1,
                         size: 18,
                         color: canSubmit
                             ? Colors.white
@@ -975,182 +1014,175 @@ class _CreateEventRequestWizardBodyState
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        _buildSectionCard(
-          icon: Iconsax.clock,
-          iconColor: const Color(0xFF06B6D4),
-          title: 'select_slot'.tr(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_configLoading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              else if (_configError != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Iconsax.warning_2,
-                        color: Colors.red.shade700,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _configError!,
-                          style: TextStyle(
-                            color: Colors.red.shade700,
-                            fontSize: 13,
+        if (_selectedDate != null) ...[
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            icon: Iconsax.clock,
+            iconColor: const Color(0xFF06B6D4),
+            title: 'select_slot'.tr(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_configLoading)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else if (_configError != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Iconsax.warning_2,
+                          color: Colors.red.shade700,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _configError!,
+                            style: TextStyle(
+                              color: Colors.red.shade700,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              else if (_availableSlotLabels.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Iconsax.info_circle,
-                        color: const Color(0xFF94A3B8),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'select_date_first'.tr(),
-                        style: const TextStyle(
-                          fontFamily: 'MontserratArabic',
-                          color: Color(0xFF94A3B8),
+                      ],
+                    ),
+                  )
+                else if (_availableSlotLabels
+                    .where((s) => _slotSelectable(s))
+                    .isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Iconsax.info_circle,
+                          color: const Color(0xFF94A3B8),
+                          size: 20,
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _availableSlotLabels.map((slot) {
-                    final selectable = _slotSelectable(slot);
-                    final selected = _selectedTimeSlot == slot;
+                        const SizedBox(width: 10),
+                        Text(
+                          'no_slots_available_for_date'.tr(),
+                          style: const TextStyle(
+                            fontFamily: 'MontserratArabic',
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: _availableSlotLabels
+                        .where((s) => _slotSelectable(s))
+                        .map((slot) {
+                      final selected = _selectedTimeSlot == slot;
 
-                    return GestureDetector(
-                      onTap: selectable
-                          ? () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _selectedTimeSlot = slot);
-                            }
-                          : null,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? AppColors.primaryRed.withOpacity(0.1)
-                              : selectable
-                              ? Colors.white
-                              : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selected
-                                ? AppColors.primaryRed
-                                : const Color(0xFFE2E8F0),
-                            width: selected ? 2 : 1,
+                      return GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _selectedTimeSlot = slot);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 12,
                           ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Iconsax.clock,
-                              size: 16,
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? AppColors.primaryRed.withOpacity(0.1)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
                               color: selected
                                   ? AppColors.primaryRed
-                                  : const Color(0xFF94A3B8),
+                                  : const Color(0xFFE2E8F0),
+                              width: selected ? 2 : 1,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              formatEventTimeSlotRange12h(
-                                slot,
-                                context.locale.toString(),
-                              ),
-                              style: TextStyle(
-                                fontFamily: 'MontserratArabic',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Iconsax.clock,
+                                size: 16,
                                 color: selected
                                     ? AppColors.primaryRed
                                     : const Color(0xFF94A3B8),
                               ),
-                            ),
-                            if (!selectable) ...[
-                              const SizedBox(width: 6),
-                              Icon(
-                                Iconsax.close_circle,
-                                size: 14,
-                                color: const Color(0xFFCBD5E1),
+                              const SizedBox(width: 8),
+                              Text(
+                                formatEventTimeSlotRange12h(
+                                  slot,
+                                  context.locale.toString(),
+                                ),
+                                style: TextStyle(
+                                  fontFamily: 'MontserratArabic',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: selected
+                                      ? AppColors.primaryRed
+                                      : const Color(0xFF94A3B8),
+                                ),
                               ),
                             ],
-                          ],
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              if (_selectedTimeSlot != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
+                      );
+                    }).toList(),
                   ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Iconsax.timer,
-                        size: 16,
-                        color: const Color(0xFF64748B),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${'duration_hours'.tr()}: $_fixedDurationHours',
-                        style: const TextStyle(
-                          fontFamily: 'MontserratArabic',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF64748B),
+                if (_selectedTimeSlot != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Iconsax.timer,
+                          size: 16,
+                          color: const Color(0xFF64748B),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          '${'duration_hours'.tr()}: $_fixedDurationHours',
+                          style: const TextStyle(
+                            fontFamily: 'MontserratArabic',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
+        ],
         const SizedBox(height: 16),
         _buildSectionCard(
           icon: Iconsax.people,
@@ -1230,60 +1262,6 @@ class _CreateEventRequestWizardBodyState
           ),
         ),
         const SizedBox(height: 16),
-        _buildSectionCard(
-          icon: Iconsax.magic_star,
-          iconColor: AppColors.primaryPink,
-          title: 'decoration'.tr(),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryPink.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Iconsax.magic_star,
-                    size: 20,
-                    color: AppColors.primaryPink,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'decoration'.tr(),
-                        style: const TextStyle(
-                          fontFamily: 'MontserratArabic',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _decorated,
-                  onChanged: (v) {
-                    HapticFeedback.selectionClick();
-                    setState(() => _decorated = v);
-                  },
-                  activeColor: AppColors.primaryPink,
-                ),
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -1543,12 +1521,6 @@ class _CreateEventRequestWizardBodyState
                 '$_persons ${'persons'.tr()}',
                 Iconsax.people,
               ),
-              if (_decorated)
-                _buildSummaryRow(
-                  'decoration'.tr(),
-                  'yes'.tr(),
-                  Iconsax.magic_star,
-                ),
             ],
           ),
         ),
@@ -1995,23 +1967,334 @@ class _CreateEventRequestWizardBodyState
     );
   }
 
+  void _showSuccessAndPop(BuildContext context, String paymentId) {
+    Navigator.of(context).pushReplacementNamed(
+      AppRoutes.paymentSuccess,
+      arguments: {'paymentId': paymentId},
+    );
+  }
+
+  Future<void> _confirmWalletPayment(
+    BuildContext context,
+    String paymentId,
+  ) async {
+    try {
+      payments_di.initPayments();
+      final useCase = payments_di.sl<ConfirmPaymentUseCase>();
+      final confirm = await useCase(paymentId: paymentId);
+      if (!context.mounted) return;
+      if (confirm.success) {
+        _showSuccessAndPop(context, paymentId);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('payment_failed_title'.tr()),
+            backgroundColor: AppColors.errorColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.errorColor,
+        ),
+      );
+    }
+  }
+
   void _submit() {
     if (!_isAllDataComplete) return;
+    _showPaymentMethodSheet(context);
+  }
 
-    _cubit.createRequest(
+  void _showPaymentMethodSheet(BuildContext pageContext) {
+    final total = _totalAmount.toDouble();
+    final authState = pageContext.read<AuthCubit>().state;
+    final user = authState is Authenticated ? authState.user : null;
+    final walletBalance = user?.wallet?.balance ?? 0.0;
+    final hasEnoughBalance = walletBalance >= total;
+
+    showModalBottomSheet(
+      context: pageContext,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'select_payment_method'.tr(),
+              style: const TextStyle(
+                fontFamily: 'MontserratArabic',
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 24),
+            BlocProvider(
+              create: (_) {
+                final cubit = sl<WalletCubit>();
+                if (cubit.state is WalletInitial) {
+                  cubit.loadWallet();
+                }
+                return cubit;
+              },
+              child: BlocBuilder<WalletCubit, WalletState>(
+                builder: (_, walletState) {
+                  double currentBalance = walletBalance;
+                  bool currentHasEnough = hasEnoughBalance;
+
+                  if (walletState is WalletLoaded) {
+                    currentBalance = walletState.wallet.balance;
+                    currentHasEnough = currentBalance >= total;
+                  }
+
+                  return Column(
+                    children: [
+                      _buildPaymentMethodTile(
+                        icon: Iconsax.card,
+                        iconColor: const Color(0xFF3B82F6),
+                        title: 'credit_card'.tr(),
+                        subtitle: 'visa_mastercard'.tr(),
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          _processSubmit('credit_card');
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _buildPaymentMethodTile(
+                        icon: Iconsax.wallet_3,
+                        iconColor: AppColors.luxuryGold,
+                        title: 'pay_with_wallet'.tr(),
+                        subtitle: currentHasEnough
+                            ? '${'wallet_balance'.tr()}: ${formatWalletMoney(currentBalance, 'currency'.tr())}'
+                            : 'insufficient_balance'.tr(),
+                        enabled: currentHasEnough,
+                        onTap: currentHasEnough
+                            ? () {
+                                Navigator.pop(sheetContext);
+                                _processSubmit('wallet');
+                              }
+                            : null,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _processSubmit(String method) {
+    _cubit.initiatePayFirstRequest(
       type: _selectedType!,
       branchId: _selectedBranchId!,
-      hallId: null,
-      startTime: _selectedDate!,
+      selectedDate: _selectedDate!,
+      selectedTimeSlot: _selectedTimeSlot!,
       durationHours: _fixedDurationHours,
       persons: _persons,
-      decorated: _decorated,
+      paymentOption: _paymentOption,
+      acceptedTerms: _termsAccepted,
+      paymentMethod: method,
       addOns: _buildAddOnsPayload(),
       notes: _notes?.isEmpty == true ? null : _notes,
-      selectedTimeSlot: _selectedTimeSlot!,
-      acceptedTerms: _termsAccepted,
-      paymentOption: _paymentOption,
-      paymentMethod: null,
+    );
+  }
+
+  Widget _buildPaymentMethodTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    VoidCallback? onTap,
+    bool enabled = true,
+  }) {
+    return GestureDetector(
+      onTap: enabled
+          ? () {
+              HapticFeedback.selectionClick();
+              onTap?.call();
+            }
+          : null,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: enabled ? Colors.white : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: enabled ? const Color(0xFFE2E8F0) : const Color(0xFFF1F5F9),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(enabled ? 0.12 : 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                size: 22,
+                color: enabled ? iconColor : const Color(0xFFCBD5E1),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontFamily: 'MontserratArabic',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: enabled
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontFamily: 'MontserratArabic',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: enabled
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Iconsax.arrow_right_1,
+              size: 20,
+              color: enabled ? const Color(0xFF94A3B8) : const Color(0xFFCBD5E1),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Inline Moyasar payment page for the pay-first event request flow.
+class _EventMoyasarPaymentPage extends StatelessWidget {
+  final String paymentId;
+  final double amount;
+  final Map<String, dynamic> eventPayload;
+
+  const _EventMoyasarPaymentPage({
+    required this.paymentId,
+    required this.amount,
+    required this.eventPayload,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final paymentConfig = buildMoyasarPaymentConfig(
+      amount: amount,
+      description: 'Private event booking',
+      metadata: {
+        'flow': 'event_request_pay_first',
+        'paymentId': paymentId,
+      },
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('pay_event_booking'.tr()),
+        backgroundColor: AppColors.surfaceColor,
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: MoyasarCheckoutView(
+            config: paymentConfig,
+            applePayTitle: 'apple_pay'.tr(),
+            onPaymentResult: (result) async {
+              if (result is PaymentResponse) {
+                final isPaid = result.status == PaymentStatus.paid ||
+                    result.status == PaymentStatus.authorized;
+                if (isPaid) {
+                  try {
+                    payments_di.initPayments();
+                  } catch (_) {}
+                  final useCase = payments_di.sl<ConfirmPaymentUseCase>();
+                  final confirm = await useCase(
+                    paymentId: paymentId,
+                    chargeId: result.id,
+                  );
+                  if (!context.mounted) return;
+                  if (confirm.success) {
+                    Navigator.of(context).pop(true);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('payment_failed_title'.tr()),
+                        backgroundColor: AppColors.errorColor,
+                      ),
+                    );
+                  }
+                  return;
+                }
+
+                if (result.status == PaymentStatus.failed && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('payment_failed_title'.tr()),
+                      backgroundColor: AppColors.errorColor,
+                    ),
+                  );
+                }
+                return;
+              }
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      extractMoyasarError(result, 'payment_failed_title'.tr()),
+                    ),
+                    backgroundColor: AppColors.errorColor,
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+      ),
     );
   }
 }

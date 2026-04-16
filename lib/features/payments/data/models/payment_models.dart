@@ -8,6 +8,7 @@ class CreatePaymentIntentRequestModel {
   final String? offerBookingId;
   final String? offerProductId;
   final bool? acceptedTerms;
+  final Map<String, dynamic>? eventRequestPayload;
   final String method; // credit_card / wallet
 
   CreatePaymentIntentRequestModel({
@@ -19,6 +20,7 @@ class CreatePaymentIntentRequestModel {
     this.offerBookingId,
     this.offerProductId,
     this.acceptedTerms,
+    this.eventRequestPayload,
     required this.method,
   });
 
@@ -38,6 +40,8 @@ class CreatePaymentIntentRequestModel {
     if (offerProductId != null && offerProductId!.isNotEmpty)
       'offerProductId': offerProductId,
     if (acceptedTerms != null) 'acceptedTerms': acceptedTerms,
+    if (eventRequestPayload != null && eventRequestPayload!.isNotEmpty)
+      'eventRequestPayload': eventRequestPayload,
     'method': method,
   };
 }
@@ -125,11 +129,14 @@ class ConfirmPaymentResponseModel {
   final bool success;
   final String? transactionId;
   final DateTime? paidAt;
+  /// Returned by the backend when the pay-first event request flow completes.
+  final String? eventRequestId;
 
   ConfirmPaymentResponseModel({
     required this.success,
     this.transactionId,
     this.paidAt,
+    this.eventRequestId,
   });
 
   factory ConfirmPaymentResponseModel.fromJson(Map<String, dynamic> json) {
@@ -142,6 +149,8 @@ class ConfirmPaymentResponseModel {
       paidAt: data['paidAt'] != null
           ? DateTime.tryParse(data['paidAt'].toString())
           : null,
+      eventRequestId: data['eventRequestId']?.toString(),
     );
   }
 }
+

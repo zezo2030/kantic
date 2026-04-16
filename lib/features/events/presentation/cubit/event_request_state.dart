@@ -52,6 +52,25 @@ class EventRequestCreated extends EventRequestState {
   List<Object?> get props => [request];
 }
 
+/// Emitted when the pay-first intent is ready and we can open the payment page.
+class EventRequestPaymentReady extends EventRequestState {
+  final String paymentId;
+  final double amount;
+  final String paymentMethod;
+  /// Snapshot of event payload to pass to the Moyasar page so it can confirm.
+  final Map<String, dynamic> eventPayload;
+
+  const EventRequestPaymentReady({
+    required this.paymentId,
+    required this.amount,
+    required this.paymentMethod,
+    required this.eventPayload,
+  });
+
+  @override
+  List<Object?> get props => [paymentId, amount, paymentMethod, eventPayload];
+}
+
 class EventRequestCreateError extends EventRequestState {
   final String message;
   /// When the API rejects create because a quoted request awaits payment for this branch.

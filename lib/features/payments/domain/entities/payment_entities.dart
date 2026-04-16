@@ -25,13 +25,16 @@ class ConfirmPaymentResultEntity extends Equatable {
   final bool success;
   final String? transactionId;
   final DateTime? paidAt;
+  /// Set by the backend when using the pay-first event request flow.
+  final String? eventRequestId;
 
   const ConfirmPaymentResultEntity({
     required this.success,
     this.transactionId,
     this.paidAt,
+    this.eventRequestId,
   });
 
   @override
-  List<Object?> get props => [success, transactionId, paidAt];
+  List<Object?> get props => [success, transactionId, paidAt, eventRequestId];
 }

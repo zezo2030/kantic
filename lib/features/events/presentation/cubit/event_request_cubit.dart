@@ -5,6 +5,8 @@ import '../../domain/usecases/get_event_requests_usecase.dart';
 import '../../domain/usecases/create_event_request_usecase.dart';
 import '../../domain/usecases/get_event_request_usecase.dart';
 import '../../domain/repositories/event_request_repository.dart';
+import '../../../payments/di/payments_injection.dart' as payments_di;
+import '../../../payments/domain/usecases/create_payment_intent_usecase.dart';
 import 'event_request_state.dart';
 
 String _messageFromCreateError(Object e) {
@@ -133,6 +135,63 @@ class EventRequestCubit extends Cubit<EventRequestState> {
           redirectToRequestId: redirectId,
         ),
       );
+    }
+  }
+
+  /// Pay-First flow: creates a payment intent with the event details.
+  /// The [EventRequest] record is only created after successful payment.
+  Future<void> initiatePayFirstRequest({
+    required String type,
+    required String branchId,
+    required DateTime selectedDate,
+    required String selectedTimeSlot,
+    required int durationHours,
+    required int persons,
+    required String paymentOption,
+    required bool acceptedTerms,
+    required String paymentMethod,
+    List<Map<String, dynamic>>? addOns,
+    String? notes,
+  }) async {
+    emit(EventRequestCreating());
+
+    try {
+      payments_di.initPayments();
+      final createIntent = payments_di.sl<CreatePaymentIntentUseCase>();
+
+      final dateStr =
+          '${selectedDate.year.toString().padLeft(4, '0')}-'
+          '${selectedDate.month.toString().padLeft(2, '0')}-'
+          '${selectedDate.day.toString().padLeft(2, '0')}';
+
+      final eventPayload = <String, dynamic>{
+        'type': type,
+        'branchId': branchId,
+        'startTime': dateStr,
+        'selectedTimeSlot': selectedTimeSlot,
+        'durationHours': durationHours,
+        'persons': persons,
+        'paymentOption': paymentOption,
+        'acceptedTerms': acceptedTerms,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+        if (addOns != null && addOns.isNotEmpty) 'addOns': addOns,
+      };
+
+      final intent = await createIntent(
+        eventRequestPayload: eventPayload,
+        acceptedTerms: acceptedTerms,
+        method: paymentMethod,
+      );
+
+      emit(EventRequestPaymentReady(
+        paymentId: intent.paymentId,
+        amount: intent.amount ?? 0.0,
+        paymentMethod: paymentMethod,
+        eventPayload: eventPayload,
+      ));
+    } catch (e) {
+      final msg = _messageFromCreateError(e);
+      emit(EventRequestCreateError(message: msg));
     }
   }
 

@@ -291,39 +291,12 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
                   ],
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     RatingsSection(
                       rating: branch.rating,
                       reviewsCount: branch.reviewsCount,
                     ),
-                    const Spacer(),
-                    if (branch.amenities != null &&
-                        branch.amenities!.isNotEmpty)
-                      Row(
-                        children: branch.amenities!.take(2).map((amenity) {
-                          return Container(
-                            margin: const EdgeInsets.only(left: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryRed.withValues(
-                                alpha: 0.08,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              amenity,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.primaryRed,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
                   ],
                 ),
               ),
@@ -358,30 +331,6 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
                   ],
                 ),
 
-              // Offers Section
-              if (branch.offers != null && branch.offers!.isNotEmpty) ...[
-                Builder(
-                  builder: (context) {
-                    final List<dynamic> branchWideOffers = branch.offers ?? [];
-                    if (branchWideOffers.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return _buildSectionLayout(
-                      title: 'offers'.tr(),
-                      icon: Iconsax.discount_shape,
-                      child: OffersSection(offers: branchWideOffers),
-                      padding: const EdgeInsets.symmetric(vertical: 0),
-                    );
-                  },
-                ),
-              ],
-
-              // Subscription plans & catalog offer products (API)
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 8),
-                child: BranchCommerceSection(branchId: branch.id),
-              ),
-
               // Branch Video Section
               if (branch.videoUrl != null && branch.videoUrl!.isNotEmpty) ...[
                 Padding(
@@ -407,6 +356,30 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
                 const SizedBox(height: 24),
               ],
 
+              // Offers Section
+              if (branch.offers != null && branch.offers!.isNotEmpty) ...[
+                Builder(
+                  builder: (context) {
+                    final List<dynamic> branchWideOffers = branch.offers ?? [];
+                    if (branchWideOffers.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return _buildSectionLayout(
+                      title: 'offers'.tr(),
+                      icon: Iconsax.discount_shape,
+                      child: OffersSection(offers: branchWideOffers),
+                      padding: const EdgeInsets.symmetric(vertical: 0),
+                    );
+                  },
+                ),
+              ],
+
+              // Subscription plans & catalog offer products (API)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 8),
+                child: BranchCommerceSection(branchId: branch.id),
+              ),
+
               // Gallery Section
               if (branch.images != null && branch.images!.isNotEmpty) ...[
                 _buildSectionTitle('gallery'.tr(), Iconsax.gallery),
@@ -417,14 +390,14 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
               ],
 
               // Branch Amenities Section
-              if (branch.amenities != null && branch.amenities!.length > 2)
+              if (branch.amenities != null && branch.amenities!.isNotEmpty)
                 _buildSectionLayout(
                   title: 'amenities'.tr(),
                   icon: Iconsax.star,
                   child: Wrap(
                     spacing: 12,
                     runSpacing: 12,
-                    children: branch.amenities!.skip(2).map((amenity) {
+                    children: branch.amenities!.map((amenity) {
                       return IntrinsicWidth(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -924,12 +897,10 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
             description: 'special_events_description'.tr(),
             gradientColors: [const Color(0xFFFF5CAB), const Color(0xFFFF6A00)],
             onTap: () {
-              Navigator.push(
+              Navigator.pushNamed(
                 context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      CreateEventRequestPage(branchId: widget.branchId),
-                ),
+                AppRoutes.specialEventsCreate,
+                arguments: {'branchId': widget.branchId},
               );
             },
           ),
@@ -940,12 +911,10 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
             description: 'school_trips_description'.tr(),
             gradientColors: [const Color(0xFF4C83FF), const Color(0xFF2E62FF)],
             onTap: () {
-              Navigator.push(
+              Navigator.pushNamed(
                 context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      TripRequestWizardPage(branchId: widget.branchId),
-                ),
+                AppRoutes.schoolTripsCreate,
+                arguments: {'branchId': widget.branchId},
               );
             },
           ),

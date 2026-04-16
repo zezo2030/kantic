@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -8,6 +9,9 @@ import '../../../../core/constants/api_constants.dart';
 import '../cubit/payment_cubit.dart';
 import '../../di/payments_injection.dart' as payments_di;
 import '../../../../core/routes/app_route_generator.dart';
+
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
 
 class PaymentSuccessPage extends StatefulWidget {
   final String paymentId;
@@ -27,6 +31,14 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
   bool _isLoading = true;
   String? _error;
   bool _isSuccess = false;
+  Timer? _redirectTimer;
+  int _secondsRemaining = 3;
+
+  @override
+  void dispose() {
+    _redirectTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -120,10 +132,16 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
       child: BlocConsumer<PaymentCubit, PaymentState>(
         listener: (context, state) {
           if (state is PaymentSuccess) {
+            // Refresh user profile to update loyalty points balance
+            try {
+              context.read<AuthCubit>().refreshProfileSilent();
+            } catch (e) {}
+
             setState(() {
               _isLoading = false;
               _isSuccess = true;
             });
+            _startRedirectTimer();
           } else if (state is PaymentFailure) {
             setState(() {
               _isLoading = false;
@@ -227,6 +245,15 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                 ),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 8),
+              Text(
+                'redirecting_in_seconds'.tr(args: [_secondsRemaining.toString()]),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 16),
               Text(
                 '${tr('transaction_id')}: ${widget.paymentId.length > 8 ? '${widget.paymentId.substring(0, 8)}...' : widget.paymentId}',
@@ -301,9 +328,10 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pushNamed(
                       context,
-                      AppRoutes.main,
+                      AppRoutes.eventRequestDetails,
+                      arguments: {'requestId': _eventRequestId!},
                     ),
-                    child: Text('event_requests'.tr()),
+                    child: Text('view_event_request'.tr()),
                   ),
                 ),
               ],
@@ -356,6 +384,57 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
           ),
         );
       }
+    }
+  }
+
+  void _startRedirectTimer() {
+    _redirectTimer?.cancel();
+    _redirectTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        if (_secondsRemaining > 0) {
+          _secondsRemaining--;
+        } else {
+          timer.cancel();
+          _autoRedirect();
+        }
+      });
+    });
+  }
+
+  void _autoRedirect() {
+    if (!mounted) return;
+
+    if (_eventRequestId != null) {
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.eventRequestDetails,
+        arguments: {'requestId': _eventRequestId!},
+      );
+    } else if (_bookingId != null) {
+      _navigateToBookingDetails();
+    } else if (_subscriptionPurchaseId != null) {
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.subscriptionDetails,
+        arguments: {'purchaseId': _subscriptionPurchaseId!},
+      );
+    } else if (_offerBookingId != null) {
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.offerBookingDetails,
+        arguments: {'bookingId': _offerBookingId!},
+      );
+    } else if (_tripRequestId != null) {
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.schoolTripsDetails,
+        arguments: {'requestId': _tripRequestId!},
+      );
     }
   }
 }

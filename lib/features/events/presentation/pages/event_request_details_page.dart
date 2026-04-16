@@ -91,7 +91,6 @@ class EventRequestDetailsPage extends StatefulWidget {
   final double? initialAddonsTotal;
   final String? initialPaymentOption;
   final String? initialSelectedTimeSlot;
-  final bool? initialDecorated;
   final bool autoStartPayment;
 
   const EventRequestDetailsPage({
@@ -102,7 +101,6 @@ class EventRequestDetailsPage extends StatefulWidget {
     this.initialAddonsTotal,
     this.initialPaymentOption,
     this.initialSelectedTimeSlot,
-    this.initialDecorated,
     this.autoStartPayment = false,
   });
 
@@ -403,7 +401,6 @@ class _EventRequestDetailsPageState extends State<EventRequestDetailsPage>
     final showDepositBreakdown =
         effectivePaymentOption == 'deposit' ||
         (depositAmount > 0 && depositAmount < grandTotal);
-    final isDecorated = widget.initialDecorated ?? request.decorated;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -544,14 +541,6 @@ class _EventRequestDetailsPageState extends State<EventRequestDetailsPage>
                   'persons_count_value'.tr(args: [request.persons.toString()]),
                   Iconsax.people,
                   const Color(0xFF3B82F6),
-                ),
-                const SizedBox(height: 14),
-                _buildInfoRow(
-                  context,
-                  'decoration'.tr(),
-                  isDecorated ? 'yes'.tr() : 'no'.tr(),
-                  Iconsax.magic_star,
-                  const Color(0xFFEC4899),
                 ),
                 if (effectivePaymentOption != null) ...[
                   const SizedBox(height: 14),

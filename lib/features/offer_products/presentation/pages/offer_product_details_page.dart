@@ -4,6 +4,8 @@ import 'package:iconsax/iconsax.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/offer_product_model.dart';
 import 'offer_checkout_page.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/utils/url_utils.dart';
 
 class OfferProductDetailsPage extends StatelessWidget {
   final OfferProductModel product;
@@ -15,190 +17,327 @@ class OfferProductDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceColor,
-      appBar: AppBar(
-        title: Text('offer_product_details'.tr()),
-        centerTitle: true,
-        backgroundColor: AppColors.surfaceColor,
-        elevation: 0,
-        scrolledUnderElevation: 2,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
-        titleTextStyle: const TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          fontFamily: 'MontserratArabic',
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildBody(context),
-          ],
-        ),
+      backgroundColor: AppColors.backgroundColor,
+      body: CustomScrollView(
+        slivers: [
+          _buildSliverAppBar(context),
+          SliverToBoxAdapter(
+            child: _buildBody(context),
+          ),
+        ],
       ),
       bottomNavigationBar: _buildBottomBar(context),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceColor,
+  Widget _buildSliverAppBar(BuildContext context) {
+    final bool hasImage = product.imageUrl != null && product.imageUrl!.isNotEmpty;
+    return SliverAppBar(
+      expandedHeight: hasImage ? 340 : 120,
+      pinned: true,
+      stretch: true,
+      backgroundColor: AppColors.primaryRed,
+      elevation: 0,
+      leading: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: CircleAvatar(
+          backgroundColor: Colors.white.withOpacity(0.8),
+          child: IconButton(
+            icon: const Icon(
+              Iconsax.arrow_right_3,
+              color: AppColors.primaryRed,
+              size: 20,
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title & Gift Badge
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  product.title,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-              if (product.isGiftable)
-                Container(
-                  margin: const EdgeInsets.only(left: 12, right: 12),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Iconsax.gift, color: Colors.amber, size: 24),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Price Tag
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryRed.withOpacity(0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  '${product.price.toStringAsFixed(product.price % 1 == 0 ? 0 : 2)} ${product.currency.tr()}',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Key Features Section
-          Text(
-            'offer_summary'.tr(),
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _buildModernFeatureItem(
-                context,
-                icon: _isTicket ? Iconsax.ticket : Iconsax.clock,
-                title: 'offer_type'.tr(),
-                value: _isTicket ? 'ticket'.tr() : 'hours'.tr(),
-              ),
-              if (_isTicket && product.ticketConfig != null)
-                _buildModernFeatureItem(
-                  context,
-                  icon: Iconsax.ticket,
-                  title: 'ticket_count'.tr(),
-                  value: '${product.ticketConfig!['ticketCount'] ?? 0} ${'tickets'.tr()}',
-                ),
-              if (!_isTicket && product.hoursConfig != null)
-                _buildModernFeatureItem(
-                  context,
-                  icon: Iconsax.clock,
-                  title: 'subscriptions_total_hours'.tr(),
-                  value: '${product.hoursConfig!['totalHours'] ?? 0} ${'hours'.tr()}',
-                ),
-            ],
-          ),
-
-          const SizedBox(height: 32),
-          if (product.description != null && product.description!.isNotEmpty) ...[
-            _buildSectionTitle('about_offer'.tr()),
-            const SizedBox(height: 12),
-            Text(
-              product.description!,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.6,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 32),
-          ],
-
-          if (product.termsAndConditions != null &&
-              product.termsAndConditions!.isNotEmpty) ...[
-            _buildSectionTitle('terms_and_conditions'.tr()),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.luxurySurfaceVariant.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.borderLight),
-              ),
-              child: Text(
-                product.termsAndConditions!,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.6,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 60), // Extra safety spacing
+      flexibleSpace: FlexibleSpaceBar(
+        stretchModes: const [
+          StretchMode.zoomBackground,
+          StretchMode.blurBackground,
         ],
+        title: !hasImage 
+            ? Text(
+                'offer_product_details'.tr(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              )
+            : null,
+        centerTitle: true,
+        background: hasImage
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  Hero(
+                    tag: 'offer_${product.id}',
+                    child: CachedNetworkImage(
+                      imageUrl: resolveFileUrl(product.imageUrl!),
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(color: Colors.grey.shade200),
+                      errorWidget: (context, url, error) => Container(color: Colors.grey.shade200),
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.3),
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
+                        stops: const [0.0, 0.4, 1.0],
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Container(
+                decoration: const BoxDecoration(gradient: AppColors.heroGradient),
+              ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(24),
+        child: Container(
+          height: 24,
+          decoration: const BoxDecoration(
+            color: AppColors.backgroundColor,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(32),
+              topRight: Radius.circular(32),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary,
+  Widget _buildBody(BuildContext context) {
+    return Transform.translate(
+      offset: const Offset(0, -10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title & Gift Badge
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    product.title,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+                if (product.isGiftable)
+                  Container(
+                    margin: const EdgeInsets.only(left: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.luxuryGold.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.luxuryGold.withOpacity(0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Iconsax.gift, color: AppColors.luxuryGold, size: 26),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // 2. Offer Details (about_offer)
+            if (product.description != null && product.description!.isNotEmpty) ...[
+              _buildSectionTitle('about_offer'.tr(), Iconsax.info_circle),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadowColor.withOpacity(0.05),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  product.description!,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.8,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
+
+            // 3. Key Features Section
+            _buildSectionTitle('offer_summary'.tr(), Iconsax.star),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _buildModernFeatureItem(
+                  context,
+                  icon: _isTicket ? Iconsax.ticket : Iconsax.clock,
+                  title: 'offer_type'.tr(),
+                  value: _isTicket ? 'ticket'.tr() : 'hours'.tr(),
+                ),
+                if (_isTicket && product.ticketConfig != null)
+                  _buildModernFeatureItem(
+                    context,
+                    icon: Iconsax.ticket,
+                    title: 'ticket_count'.tr(),
+                    value: '${product.ticketConfig!['ticketCount'] ?? 0} ${'tickets'.tr()}',
+                  ),
+                if (!_isTicket && product.hoursConfig != null)
+                  _buildModernFeatureItem(
+                    context,
+                    icon: Iconsax.clock,
+                    title: 'subscriptions_total_hours'.tr(),
+                    value: '${product.hoursConfig!['totalHours'] ?? 0} ${'hours'.tr()}',
+                  ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // 4. Price Tag / Summary
+            _buildSectionTitle(context.locale.languageCode == 'ar' ? 'ملخص العرض' : 'Offer Summary', Iconsax.wallet_3),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryRed.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.locale.languageCode == 'ar' ? 'السعر النهائي' : 'Final Price',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '${product.price.toStringAsFixed(product.price % 1 == 0 ? 0 : 2)} ${product.currency.tr()}',
+                        style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Terms and Conditions
+            if (product.termsAndConditions != null &&
+                product.termsAndConditions!.isNotEmpty) ...[
+              _buildSectionTitle('terms_and_conditions'.tr(), Iconsax.document_text),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.luxurySurfaceVariant.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.borderLight, width: 1),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Iconsax.info_circle, size: 20, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        product.termsAndConditions!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.8,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            const SizedBox(height: 80), // Extra safety spacing
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.primaryRed.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.primaryRed, size: 22),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 
@@ -212,24 +351,24 @@ class OfferProductDetailsPage extends StatelessWidget {
       width: (MediaQuery.of(context).size.width - 48 - 12) / 2, // 2 items per row max
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.luxurySurfaceVariant,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowColor.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.primaryRed.withOpacity(0.08),
               borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
             child: Icon(icon, color: AppColors.primaryRed, size: 24),
           ),
@@ -242,14 +381,14 @@ class OfferProductDetailsPage extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
               color: AppColors.textPrimary,
             ),
           ),
@@ -261,22 +400,24 @@ class OfferProductDetailsPage extends StatelessWidget {
   Widget _buildBottomBar(BuildContext context) {
     return Container(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: MediaQuery.of(context).padding.bottom + 16,
+        left: 24,
+        right: 24,
+        top: 20,
+        bottom: MediaQuery.of(context).padding.bottom + 20,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceColor,
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 24,
-            offset: const Offset(0, -8),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 30,
+            offset: const Offset(0, -10),
           ),
         ],
       ),
       child: SafeArea(
+        top: false,
         child: FilledButton.icon(
           onPressed: () => Navigator.push(
             context,
@@ -287,20 +428,19 @@ class OfferProductDetailsPage extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primaryRed,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 18),
+            padding: const EdgeInsets.symmetric(vertical: 20),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
             ),
             elevation: 0,
           ),
-          icon: const Icon(Iconsax.card_send, size: 22),
+          icon: const Icon(Iconsax.card_send, size: 24),
           label: Text(
             'buy_offer'.tr(),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5),
           ),
         ),
       ),
     );
   }
 }
-

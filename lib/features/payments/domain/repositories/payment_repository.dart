@@ -10,6 +10,7 @@ abstract class PaymentRepository {
     String? offerBookingId,
     String? offerProductId,
     bool? acceptedTerms,
+    Map<String, dynamic>? eventRequestPayload,
     required String method,
   });
 

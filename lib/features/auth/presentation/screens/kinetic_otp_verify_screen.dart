@@ -132,9 +132,7 @@ class _KineticOtpVerifyScreenState extends State<KineticOtpVerifyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: const Color(0xFFF5F6FA),
         body: BlocConsumer<AuthCubit, AuthState>(
           listener: (context, state) {
@@ -273,7 +271,7 @@ class _KineticOtpVerifyScreenState extends State<KineticOtpVerifyScreen> {
 
                             // Helper text
                             Align(
-                              alignment: Alignment.centerRight,
+                              alignment: AlignmentDirectional.centerStart,
                               child: Text(
                                 easy_localization.tr('verification_code'),
                                 style: TextStyle(
@@ -285,7 +283,7 @@ class _KineticOtpVerifyScreenState extends State<KineticOtpVerifyScreen> {
                             ),
                             const SizedBox(height: 6),
                             Align(
-                              alignment: Alignment.centerRight,
+                              alignment: AlignmentDirectional.centerStart,
                               child: Text(
                                 easy_localization.tr(
                                   'enter_sms_verification_code',
@@ -661,7 +659,6 @@ class _KineticOtpVerifyScreenState extends State<KineticOtpVerifyScreen> {
             );
           },
         ),
-      ),
     );
   }
 }

@@ -22,6 +22,9 @@ import '../../features/trips/domain/entities/school_trip_request_entity.dart';
 import '../../features/trips/presentation/pages/trip_request_details_page.dart';
 import '../../features/trips/presentation/pages/trip_request_wizard_page.dart';
 import '../../features/trips/presentation/pages/trip_requests_page.dart';
+import '../../features/events/presentation/pages/create_event_request_page.dart';
+import '../../features/events/presentation/pages/event_request_details_page.dart';
+import '../theme/app_colors.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/payments/presentation/pages/payment_success_page.dart';
 import '../../features/subscriptions/presentation/pages/my_subscriptions_page.dart';
@@ -31,6 +34,7 @@ import '../../features/offer_products/presentation/pages/offer_booking_details_p
 import '../../features/home/presentation/pages/offers_landing_page.dart';
 import '../../features/loyalty/presentation/screens/loyalty_screen.dart';
 import '../../features/booking/presentation/pages/my_hall_tickets_page.dart';
+import '../../features/events/presentation/pages/event_request_details_page.dart';
 
 class AppRoutes {
   static const welcome = '/welcome';
@@ -60,6 +64,8 @@ class AppRoutes {
   static const offerBookingDetails = '/offer-booking-details';
   static const loyalty = '/loyalty';
   static const myHallTickets = '/my-hall-tickets';
+  static const eventRequestDetails = '/event-request-details';
+  static const specialEventsCreate = '/special-events/create';
 }
 
 class AppRouteGenerator {
@@ -151,8 +157,16 @@ class AppRouteGenerator {
           builder: (context) => const TripRequestsPage(),
         );
       case AppRoutes.schoolTripsCreate:
-        return MaterialPageRoute(
-          builder: (context) => const TripRequestWizardPage(),
+        final args = settings.arguments as Map<String, dynamic>?;
+        return _buildProtectedRoute(
+          settings: settings,
+          page: TripRequestWizardPage(branchId: args?['branchId']),
+        );
+      case AppRoutes.specialEventsCreate:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return _buildProtectedRoute(
+          settings: settings,
+          page: CreateEventRequestPage(branchId: args?['branchId']),
         );
       case AppRoutes.schoolTripsDetails:
         final args = settings.arguments;
@@ -221,6 +235,13 @@ class AppRouteGenerator {
           settings: settings,
           page: const LoyaltyScreen(),
         );
+      case AppRoutes.eventRequestDetails:
+        final args = settings.arguments as Map<String, dynamic>?;
+        final requestId = args?['requestId'] as String? ?? '';
+        return _buildProtectedRoute(
+          settings: settings,
+          page: EventRequestDetailsPage(requestId: requestId),
+        );
       default:
         return MaterialPageRoute(builder: (context) => const WelcomeScreen());
     }
@@ -273,12 +294,6 @@ PageRoute<dynamic> _buildProtectedRoute({
         // Redirect to login
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('login_required'.tr()),
-              backgroundColor: Colors.orange,
-            ),
-          );
         });
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }

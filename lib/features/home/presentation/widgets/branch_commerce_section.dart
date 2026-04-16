@@ -80,7 +80,7 @@ class BranchCommerceSection extends StatelessWidget {
           _SectionHeader(title: title, icon: Iconsax.card),
           const SizedBox(height: 14),
           SizedBox(
-            height: 160,
+            height: 240,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -125,7 +125,7 @@ class _SubscriptionPlansSection extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           SizedBox(
-            height: 168,
+            height: 240,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -151,8 +151,11 @@ class _SubscriptionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolvedUrl = plan.imageUrl != null && plan.imageUrl!.isNotEmpty
         ? resolveFileUrl(plan.imageUrl!)
-        : null;
-    final durationLabel = _buildDurationLabel();
+        : '';
+        
+    final bool isAr = context.locale.languageCode == 'ar';
+    final String pricePrefix = isAr ? 'سعر الاشتراك :' : 'Subscription Price :';
+    final String formattedPrice = '${plan.price.toStringAsFixed(plan.price % 1 == 0 ? 0 : 2)} ${plan.currency.tr()}';
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -162,161 +165,88 @@ class _SubscriptionCard extends StatelessWidget {
         ),
       ),
       child: Container(
-        width: 185,
+        width: 170,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: resolvedUrl == null
-              ? const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)],
-                )
-              : null,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0F3460).withOpacity(0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              // ─── Background Image ───
-              if (resolvedUrl != null)
-                Positioned.fill(
-                  child: CachedNetworkImage(
-                    imageUrl: resolvedUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: const Color(0xFF1A1A2E)),
-                    errorWidget: (_, __, ___) => Container(color: const Color(0xFF1A1A2E)),
-                  ),
-                ),
-
-              // ─── Dark overlay ───
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(resolvedUrl != null ? 0.3 : 0.0),
-                        Colors.black.withOpacity(0.8),
-                      ],
-                    ),
-                  ),
-                ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            Expanded(
+              child: SizedBox(
+                width: double.infinity,
+                child: resolvedUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: resolvedUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(color: Colors.grey[200]),
+                        errorWidget: (_, __, ___) => Container(color: Colors.grey[200]),
+                      )
+                    : Container(color: Colors.grey[200]),
               ),
-
-              // ─── Decorative circles (only if no image) ───
-              if (resolvedUrl == null) ...[
-                Positioned(
-                  top: -20,
-                  right: -20,
-                  child: Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.05),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: -10,
-                  left: -10,
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.primaryRed.withOpacity(0.15),
-                    ),
-                  ),
-                ),
-              ],
-
-              // ─── Content ───
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Icon badge
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryRed.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Iconsax.card, color: AppColors.primaryRed, size: 20),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Title
-                    Text(
-                      plan.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        height: 1.3,
-                      ),
-                    ),
-                    const Spacer(),
-
-                    // Price + Duration
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  '${plan.price.toStringAsFixed(plan.price % 1 == 0 ? 0 : 2)} ${plan.currency.tr()} / $durationLabel',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryRed,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (plan.isGiftable)
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Iconsax.gift, size: 16, color: Colors.amber),
-                          ),
-                      ],
-                    ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primaryRed,
+                    const Color(0xFFD81B60),
                   ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
               ),
-            ],
-          ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    plan.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$pricePrefix $formattedPrice',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  String _buildDurationLabel() {
-    if (plan.durationMonths == 1) return 'monthly'.tr();
-    if (plan.durationMonths == 12) return 'yearly'.tr();
-    return '${plan.durationMonths} ${'months'.tr()}';
   }
 }
 
@@ -356,7 +286,7 @@ class _OfferProductsSection extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           SizedBox(
-            height: 168,
+            height: 240,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -385,19 +315,15 @@ class _OfferProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const accentColor = AppColors.primaryRed;
-    final categoryLabel = _isTicket ? 'ticket'.tr() : 'hours'.tr();
-    final categoryIcon = _isTicket ? Iconsax.ticket : Iconsax.clock;
-
-    const backgroundGradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)],
-    );
-
     final resolvedUrl = product.imageUrl != null && product.imageUrl!.isNotEmpty
         ? resolveFileUrl(product.imageUrl!)
-        : null;
+        : '';
+        
+    final bool isAr = context.locale.languageCode == 'ar';
+    final String pricePrefix = _isTicket 
+        ? (isAr ? 'سعر التذكرة :' : 'Ticket Price :')
+        : (isAr ? 'سعر العرض :' : 'Offer Price :');
+    final String formattedPrice = '${product.price.toStringAsFixed(product.price % 1 == 0 ? 0 : 2)} ${product.currency.tr()}';
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -407,153 +333,85 @@ class _OfferProductCard extends StatelessWidget {
         ),
       ),
       child: Container(
-        width: 185,
+        width: 170,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: resolvedUrl == null ? backgroundGradient : null,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withOpacity(0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              // ─── Background Image ───
-              if (resolvedUrl != null)
-                Positioned.fill(
-                  child: CachedNetworkImage(
-                    imageUrl: resolvedUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: accentColor),
-                    errorWidget: (_, __, ___) => Container(color: accentColor),
-                  ),
-                ),
-
-              // ─── Dark overlay ───
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(resolvedUrl != null ? 0.2 : 0.0),
-                        Colors.black.withOpacity(0.7),
-                      ],
-                    ),
-                  ),
-                ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            Expanded(
+              child: SizedBox(
+                width: double.infinity,
+                child: resolvedUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: resolvedUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(color: Colors.grey[200]),
+                        errorWidget: (_, __, ___) => Container(color: Colors.grey[200]),
+                      )
+                    : Container(color: Colors.grey[200]),
               ),
-
-              // ─── Decorative circles (only if no image) ───
-              if (resolvedUrl == null) ...[
-                Positioned(
-                  top: -20,
-                  right: -20,
-                  child: Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.1),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: -10,
-                  left: -15,
-                  child: Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black.withOpacity(0.1),
-                    ),
-                  ),
-                ),
-              ],
-
-              // ─── Content ───
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Category badge
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.25),
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(categoryIcon, size: 13, color: Colors.white),
-                              const SizedBox(width: 4),
-                              Text(
-                                categoryLabel,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Spacer(),
-                        if (product.isGiftable)
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Iconsax.gift, size: 14, color: Colors.amber),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Title
-                    Text(
-                      product.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        height: 1.3,
-                      ),
-                    ),
-                    const Spacer(),
-
-                    // Price
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        '${product.price.toStringAsFixed(product.price % 1 == 0 ? 0 : 2)} ${product.currency.tr()}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryRed,
-                        ),
-                      ),
-                    ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primaryRed,
+                    const Color(0xFFD81B60),
                   ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
               ),
-            ],
-          ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    product.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$pricePrefix $formattedPrice',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

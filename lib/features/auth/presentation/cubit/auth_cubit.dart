@@ -310,7 +310,7 @@ class AuthCubit extends Cubit<AuthState> {
     result.fold(
       (failure) => emit(AuthError(message: failure.message)),
       (user) async {
-        // Save user data as JSON if not already saved
+        // Save user data as JSON
         await _storageService.saveUserData(_userEntityToJson(user));
         
         // Register FCM token if user is authenticated
@@ -422,7 +422,23 @@ class AuthCubit extends Cubit<AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(message: failure.message)),
-      (user) => emit(Authenticated(user: user)),
+      (user) async {
+        await _storageService.saveUserData(_userEntityToJson(user));
+        emit(Authenticated(user: user));
+      },
+    );
+  }
+
+  // Refresh user profile silently (without emitting loading)
+  Future<void> refreshProfileSilent() async {
+    final result = await refreshProfileUseCase();
+
+    result.fold(
+      (failure) => null, // Ignore failures in silent refresh
+      (user) async {
+        await _storageService.saveUserData(_userEntityToJson(user));
+        emit(Authenticated(user: user));
+      },
     );
   }
 

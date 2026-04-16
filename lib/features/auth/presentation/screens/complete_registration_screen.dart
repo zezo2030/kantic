@@ -64,9 +64,7 @@ class _CompleteRegistrationScreenState
       );
     }
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: const Color(0xFFF5F6FA),
         body: BlocConsumer<AuthCubit, AuthState>(
           listener: (context, state) {
@@ -428,7 +426,6 @@ class _CompleteRegistrationScreenState
             );
           },
         ),
-      ),
     );
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart'
     as easy_localization;
 import '../../../../core/routes/app_route_generator.dart';
+import '../../../../core/utils/saudi_phone_utils.dart';
+import '../widgets/saudi_phone_text_form_field.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
 
@@ -22,18 +24,6 @@ class _KineticForgotPasswordScreenState extends State<KineticForgotPasswordScree
   void dispose() {
     _localPhoneController.dispose();
     super.dispose();
-  }
-
-  String _normalizeToInternational(String raw) {
-    String value = raw.trim();
-    if (value.startsWith('00')) {
-      value = '+${value.substring(2)}';
-    }
-    value = value.replaceAll(RegExp(r'[^\d+]'), '');
-    if (!value.startsWith('+')) {
-      value = '+$value';
-    }
-    return value;
   }
 
   @override
@@ -164,49 +154,19 @@ class _KineticForgotPasswordScreenState extends State<KineticForgotPasswordScree
                               ),
                             ),
                             const SizedBox(height: 24),
-                            TextFormField(
+                            SaudiPhoneTextFormField(
                               controller: _localPhoneController,
-                              keyboardType: TextInputType.phone,
-                              decoration: InputDecoration(
-                                hintText: '+966501234567',
-                                filled: true,
-                                fillColor: const Color(0xFFF8F9FC),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey.shade300,
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey.shade300,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFE6003A),
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
+                              hintText: easy_localization.tr('saudi_mobile_hint'),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return easy_localization.tr(
-                                    'please_enter_phone_with_country_code',
+                                    'kinetic_mobile_number_required',
                                   );
                                 }
-                                final normalized =
-                                    _normalizeToInternational(value);
-                                final e164Like = RegExp(r'^\+[1-9]\d{7,14}$');
-                                if (!e164Like.hasMatch(normalized)) {
+                                final e164 = SaudiPhoneUtils.toE164(value);
+                                if (!SaudiPhoneUtils.isValidSaudiMobile(e164)) {
                                   return easy_localization.tr(
-                                    'enter_valid_international_phone',
+                                    'saudi_mobile_invalid',
                                   );
                                 }
                                 return null;
@@ -237,7 +197,7 @@ class _KineticForgotPasswordScreenState extends State<KineticForgotPasswordScree
                                               if (_formKey.currentState!
                                                   .validate()) {
                                                 final String phone =
-                                                    _normalizeToInternational(
+                                                    SaudiPhoneUtils.toE164(
                                                   _localPhoneController.text,
                                                 );
                                                 context

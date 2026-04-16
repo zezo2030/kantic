@@ -18,6 +18,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
     String? offerBookingId,
     String? offerProductId,
     bool? acceptedTerms,
+    Map<String, dynamic>? eventRequestPayload,
     required String method,
   }) async {
     final normalizedBookingId =
@@ -56,7 +57,8 @@ class PaymentRepositoryImpl implements PaymentRepository {
         normalizedSubPurchase == null &&
         normalizedSubPlan == null &&
         normalizedOfferBooking == null &&
-        normalizedOfferProduct == null) {
+        normalizedOfferProduct == null &&
+        eventRequestPayload == null) {
       throw ArgumentError(
         'At least one payment context id is required',
       );
@@ -71,6 +73,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
       offerBookingId: normalizedOfferBooking,
       offerProductId: normalizedOfferProduct,
       acceptedTerms: acceptedTerms,
+      eventRequestPayload: eventRequestPayload,
       method: method,
     );
 
@@ -115,15 +118,9 @@ class PaymentRepositoryImpl implements PaymentRepository {
         (offerBookingId != null && offerBookingId.trim().isNotEmpty)
         ? offerBookingId.trim()
         : null;
-    if (normalizedBookingId == null &&
-        normalizedEventRequestId == null &&
-        normalizedTripRequestId == null &&
-        normalizedSubPurchase == null &&
-        normalizedOfferBooking == null) {
-      throw ArgumentError(
-        'At least one payment context id is required for confirm',
-      );
-    }
+    // For pay-first flows, we might not have a context ID until after confirmation.
+    // The backend uses the payment context / deferred flow data.
+    // So we only enforce that paymentId is present (checked by req constructor/types).
 
     final req = ConfirmPaymentRequestModel(
       bookingId: normalizedBookingId,
@@ -139,6 +136,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
       success: res.success,
       transactionId: res.transactionId,
       paidAt: res.paidAt,
+      eventRequestId: res.eventRequestId,
     );
   }
 }

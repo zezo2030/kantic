@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart'
     as easy_localization;
+import '../../../../core/utils/saudi_phone_utils.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../widgets/saudi_phone_text_form_field.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
 
 class KineticOtpLoginScreen extends StatefulWidget {
@@ -22,25 +24,9 @@ class _KineticOtpLoginScreenState extends State<KineticOtpLoginScreen> {
     super.dispose();
   }
 
-  String _normalizeToInternational(String raw) {
-    String value = raw.trim();
-    // Support numbers entered as 00XXXXXXXX by converting to +XXXXXXXX
-    if (value.startsWith('00')) {
-      value = '+${value.substring(2)}';
-    }
-    // Keep only digits and an optional leading plus
-    value = value.replaceAll(RegExp(r'[^\d+]'), '');
-    if (!value.startsWith('+')) {
-      value = '+$value';
-    }
-    return value;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: const Color(0xFFF5F6FA),
         body: BlocConsumer<AuthCubit, AuthState>(
           listener: (context, state) {
@@ -185,71 +171,25 @@ class _KineticOtpLoginScreenState extends State<KineticOtpLoginScreen> {
                               ),
                               const SizedBox(height: 24),
 
-                              // Phone input (international format with country code)
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _localPhoneController,
-                                      keyboardType: TextInputType.phone,
-                                      decoration: InputDecoration(
-                                        hintText: '+201001234567',
-                                        filled: true,
-                                        fillColor: const Color(0xFFF8F9FC),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 14,
-                                            ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: Colors.grey.shade300,
-                                          ),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: Colors.grey.shade300,
-                                          ),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          borderSide: const BorderSide(
-                                            color: Color(0xFFE6003A),
-                                            width: 2,
-                                          ),
-                                        ),
-                                      ),
-                                      validator: (value) {
-                                        if (value == null ||
-                                            value.trim().isEmpty) {
-                                          return easy_localization.tr(
-                                            'please_enter_phone_with_country_code',
-                                          );
-                                        }
-                                        final normalized =
-                                            _normalizeToInternational(value);
-                                        final e164Like = RegExp(
-                                          r'^\+[1-9]\d{7,14}$',
-                                        );
-                                        if (!e164Like.hasMatch(normalized)) {
-                                          return easy_localization.tr(
-                                            'enter_valid_international_phone',
-                                          );
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                  ),
-                                ],
+                              SaudiPhoneTextFormField(
+                                controller: _localPhoneController,
+                                hintText: easy_localization.tr('saudi_mobile_hint'),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return easy_localization.tr(
+                                      'kinetic_mobile_number_required',
+                                    );
+                                  }
+                                  final e164 = SaudiPhoneUtils.toE164(value);
+                                  if (!SaudiPhoneUtils.isValidSaudiMobile(
+                                    e164,
+                                  )) {
+                                    return easy_localization.tr(
+                                      'saudi_mobile_invalid',
+                                    );
+                                  }
+                                  return null;
+                                },
                               ),
 
                               const SizedBox(height: 20),
@@ -278,8 +218,8 @@ class _KineticOtpLoginScreenState extends State<KineticOtpLoginScreen> {
                                             : () {
                                                 if (_formKey.currentState!
                                                     .validate()) {
-                                                  final String
-                                                  phone = _normalizeToInternational(
+                                                  final String phone =
+                                                      SaudiPhoneUtils.toE164(
                                                     _localPhoneController.text,
                                                   );
                                                   context
@@ -301,7 +241,9 @@ class _KineticOtpLoginScreenState extends State<KineticOtpLoginScreen> {
                                                   ),
                                                 )
                                               : Text(
-                                                  easy_localization.tr('login'),
+                                                  easy_localization.tr(
+                                                    'create_account',
+                                                  ),
                                                   style: TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 16,
@@ -324,7 +266,6 @@ class _KineticOtpLoginScreenState extends State<KineticOtpLoginScreen> {
             );
           },
         ),
-      ),
     );
   }
 }

@@ -28,19 +28,12 @@ class HomeHeaderWidget extends StatelessWidget {
     return Container(
       height: headerHeight,
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: AppColors.primaryGradient,
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(40),
           bottomRight: Radius.circular(40),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.darkRed.withOpacity(0.4),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
       ),
       child: Stack(
         children: [
