@@ -1,6 +1,7 @@
 /// Formats wallet amounts: values with absolute value ≥ 1000 use a `k` suffix (thousands).
 String _formatThousandsCore(double absAmount, String currency) {
   if (absAmount < 1000) {
+    if (absAmount % 1 == 0) return '${absAmount.toInt()} $currency';
     return '${absAmount.toStringAsFixed(2)} $currency';
   }
   final k = absAmount / 1000;

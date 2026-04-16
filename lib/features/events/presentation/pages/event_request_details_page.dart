@@ -781,7 +781,7 @@ class _EventRequestDetailsPageState extends State<EventRequestDetailsPage>
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${_addonLineTotal(addon).toStringAsFixed(2)} ${'currency'.tr()}',
+                                '${_formatCurrency(_addonLineTotal(addon))} ${'currency'.tr()}',
                                 style: const TextStyle(
                                   fontFamily: 'MontserratArabic',
                                   fontSize: 12,
@@ -914,7 +914,7 @@ class _EventRequestDetailsPageState extends State<EventRequestDetailsPage>
         Expanded(
           flex: 2,
           child: Text(
-            '${value.toStringAsFixed(2)} ${'currency'.tr()}',
+            '${_formatCurrency(value)} ${'currency'.tr()}',
             style: TextStyle(
               fontFamily: 'MontserratArabic',
               fontSize: isEmphasized ? 18 : 14,
@@ -1048,7 +1048,7 @@ class _EventRequestDetailsPageState extends State<EventRequestDetailsPage>
     if (request.status == EventRequestStatus.depositPaid ||
         request.status == EventRequestStatus.paid) {
       final depositSubtitle = remainingAmount > 0
-          ? '${'event_remaining_later'.tr()}: ${remainingAmount.toStringAsFixed(2)} ${'currency'.tr()}'
+          ? '${'event_remaining_later'.tr()}: ${_formatCurrency(remainingAmount)} ${'currency'.tr()}'
           : 'payment_received_wait_confirm'.tr();
       return _buildStatusCard(
         context,
@@ -1107,6 +1107,11 @@ class _EventRequestDetailsPageState extends State<EventRequestDetailsPage>
     }
 
     return const SizedBox.shrink();
+  }
+
+  String _formatCurrency(double value) {
+    if (value % 1 == 0) return value.toInt().toString();
+    return value.toStringAsFixed(2);
   }
 
   Widget _buildStatusCard(

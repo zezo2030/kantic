@@ -634,9 +634,10 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
   }
 
   Widget _buildDayHoursCard(String dayName, dynamic hours, bool isToday) {
-    final formattedHours = _formatWorkingHours(hours);
-    final isClosed = formattedHours == 'closed'.tr();
-    final isOpenNow = isToday && !isClosed && _isCurrentlyOpen(formattedHours);
+    final rawFormattedHours = _formatWorkingHours(hours);
+    final isClosed = rawFormattedHours == 'closed'.tr();
+    final isOpenNow = isToday && !isClosed && _isCurrentlyOpen(rawFormattedHours);
+    final displayHours = isClosed ? rawFormattedHours : _convertTo12HourRange(rawFormattedHours);
 
     Color bgColor = isToday
         ? (isClosed
@@ -649,7 +650,7 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
         : AppColors.textPrimary;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
@@ -662,60 +663,67 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: isToday
-                      ? (isClosed ? Colors.red : AppColors.primaryRed)
-                      : Colors.grey.withValues(alpha: 0.4),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _translateDayName(dayName),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: isToday ? FontWeight.bold : FontWeight.w600,
-                      color: textColor,
-                    ),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: isToday
+                        ? (isClosed ? Colors.red : AppColors.primaryRed)
+                        : Colors.grey.withValues(alpha: 0.4),
+                    shape: BoxShape.circle,
                   ),
-                  if (isToday && isOpenNow)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        'open_now'.tr(),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.primaryRed,
-                          fontWeight: FontWeight.bold,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _translateDayName(dayName),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: isToday ? FontWeight.bold : FontWeight.w600,
+                          color: textColor,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                ],
-              ),
-            ],
+                      if (isToday && isOpenNow)
+                        Text(
+                          'open_now'.tr(),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.primaryRed,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 4),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 isClosed ? Iconsax.close_circle : Iconsax.clock,
-                size: 18,
+                size: 16,
                 color: isClosed ? Colors.red : AppColors.textSecondary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
-                formattedHours,
+                displayHours,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: isClosed ? Colors.red : AppColors.textSecondary,
                 ),
@@ -1201,5 +1209,31 @@ class _BranchDetailsViewState extends State<BranchDetailsView> {
     }
 
     return cleanHours;
+  }
+
+  String _convertTo12Hour(String time) {
+    try {
+      final parts = time.split(':');
+      if (parts.length != 2) return time;
+      int hour = int.parse(parts[0]);
+      final minute = parts[1];
+      final period = hour >= 12 ? 'pm'.tr() : 'am'.tr();
+      hour = hour % 12;
+      if (hour == 0) hour = 12;
+      return '$hour:$minute $period';
+    } catch (e) {
+      return time;
+    }
+  }
+
+  String _convertTo12HourRange(String range) {
+    if (range == '24/7' || range == 'closed'.tr()) return range;
+    try {
+      final parts = range.split(' - ');
+      if (parts.length != 2) return range;
+      return '${_convertTo12Hour(parts[0])} - ${_convertTo12Hour(parts[1])}';
+    } catch (e) {
+      return range;
+    }
   }
 }

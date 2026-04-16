@@ -9,10 +9,9 @@ import 'dart:ui' as ui;
 import '../../../home/domain/entities/branch_entity.dart';
 import '../../../../core/constants/maps_constants.dart';
 import '../../../../core/utils/url_utils.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/location_service_prompt.dart';
 
-/// Map content view without AppBar
-/// Used inside HomeTabsPage
 class BranchesMapContent extends StatefulWidget {
   final List<BranchEntity> branches;
 
@@ -38,7 +37,6 @@ class _BranchesMapContentState extends State<BranchesMapContent> {
   }
 
   Future<void> _initializeMap() async {
-    // Filter branches with coordinates
     final branchesWithLocation = widget.branches
         .where((b) => b.latitude != null && b.longitude != null)
         .toList();
@@ -51,13 +49,8 @@ class _BranchesMapContentState extends State<BranchesMapContent> {
       return;
     }
 
-    // Try to get user location
     await _getUserLocation();
-
-    // Create markers
     await _createMarkers(branchesWithLocation);
-
-    // Set initial camera position
     _setInitialCameraPosition(branchesWithLocation);
 
     setState(() {
@@ -67,9 +60,14 @@ class _BranchesMapContentState extends State<BranchesMapContent> {
 
   Future<void> _showSnackBar(String message) async {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      ),
+    );
   }
 
   Future<bool> _requestLocationPermission() async {
@@ -174,6 +172,7 @@ class _BranchesMapContentState extends State<BranchesMapContent> {
         try {
           icon = await _createMarkerIconFromNetwork(branch.coverImage!);
         } catch (e) {
+          // fallback
         }
       }
 
@@ -214,6 +213,7 @@ class _BranchesMapContentState extends State<BranchesMapContent> {
         return await _buildCustomMarker(imageBytes);
       }
     } catch (e) {
+      // fallback
     }
 
     return BitmapDescriptor.defaultMarker;
@@ -261,7 +261,7 @@ class _BranchesMapContentState extends State<BranchesMapContent> {
 
     final Paint backgroundPaint = Paint()
       ..shader = const LinearGradient(
-        colors: [Color(0xFFE53935), Color(0xFFE35D5B)],
+        colors: [AppColors.primaryOrange, AppColors.primaryRed],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(Rect.fromLTWH(0, 0, markerWidth, markerHeight));
@@ -368,18 +368,63 @@ class _BranchesMapContentState extends State<BranchesMapContent> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_errorMessage != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.map_outlined, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(_errorMessage!),
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: AppColors.primaryRed,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'loading_map'.tr(),
+              style: TextStyle(
+                fontSize: 15,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryRed.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.map_outlined,
+                  size: 48,
+                  color: AppColors.primaryRed.withValues(alpha: 0.6),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                _errorMessage!,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -415,22 +460,47 @@ class _BranchesMapContentState extends State<BranchesMapContent> {
             });
           },
         ),
-
-        // My Location Button
         if (_userPosition != null || _isLoadingLocation)
           Positioned(
-            bottom: 20,
-            right: 20,
-            child: FloatingActionButton(
-              mini: true,
-              onPressed: _isLoadingLocation ? null : _centerOnUserLocation,
-              child: _isLoadingLocation
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.my_location, size: 20),
+            bottom: 24,
+            right: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryRed.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: _isLoadingLocation ? null : _centerOnUserLocation,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: _isLoadingLocation
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.my_location,
+                            size: 22,
+                            color: Colors.white,
+                          ),
+                  ),
+                ),
+              ),
             ),
           ),
       ],

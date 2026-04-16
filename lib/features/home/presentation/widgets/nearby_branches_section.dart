@@ -489,6 +489,7 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
     });
 
     final permissionGranted = await _ensurePermission();
+    if (!mounted) return;
     if (!permissionGranted) {
       setState(() {
         _isLoadingLocation = false;
@@ -498,6 +499,7 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
     }
 
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!mounted) return;
     if (!serviceEnabled) {
       setState(() {
         _isLoadingLocation = false;
@@ -507,8 +509,10 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
     }
 
     LocationPermission geoPerm = await Geolocator.checkPermission();
+    if (!mounted) return;
     if (geoPerm == LocationPermission.denied) {
       geoPerm = await Geolocator.requestPermission();
+      if (!mounted) return;
     }
     if (geoPerm == LocationPermission.denied ||
         geoPerm == LocationPermission.deniedForever) {
@@ -527,10 +531,20 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
           timeLimit: const Duration(seconds: 25),
         );
       } catch (_) {
-        final last = await Geolocator.getLastKnownPosition();
-        if (last == null) rethrow;
-        position = last;
+        position = await Geolocator.getLastKnownPosition() ?? Position(
+            longitude: 0,
+            latitude: 0,
+            timestamp: DateTime.now(),
+            accuracy: 0,
+            altitude: 0,
+            heading: 0,
+            speed: 0,
+            speedAccuracy: 0,
+            altitudeAccuracy: 0,
+            headingAccuracy: 0,
+        );
       }
+      if (!mounted) return;
 
       final branchesWithCoords = _sortedBranches
           .where((b) => b.latitude != null && b.longitude != null)
@@ -556,6 +570,7 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
         return distA.compareTo(distB);
       });
 
+      if (!mounted) return;
       setState(() {
         _sortedBranches = [...branchesWithCoords, ...branchesWithoutCoords];
         _isLoadingLocation = false;
@@ -564,6 +579,7 @@ class _NearbyBranchesSectionState extends State<NearbyBranchesSection>
             : null;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoadingLocation = false;
         _locationMessage = 'location_error'.tr();

@@ -1323,7 +1323,7 @@ class _CreateEventRequestWizardBodyState
                         ),
                       ),
                       Text(
-                        '${_addonsSubtotal().toStringAsFixed(2)} ${'currency'.tr()}',
+                        '${_addonsSubtotal() % 1 == 0 ? _addonsSubtotal().toInt() : _addonsSubtotal().toStringAsFixed(2)} ${'currency'.tr()}',
                         style: TextStyle(
                           fontFamily: 'MontserratArabic',
                           fontSize: 15,
@@ -1351,7 +1351,8 @@ class _CreateEventRequestWizardBodyState
                 color: Color(0xFF94A3B8),
               ),
             ),
-            maxLines: 3,
+            maxLines: null,
+            minLines: 3,
             onChanged: (value) => _notes = value,
           ),
         ),
@@ -1938,7 +1939,7 @@ class _CreateEventRequestWizardBodyState
           Row(
             children: [
               Text(
-                value.toStringAsFixed(2),
+                value % 1 == 0 ? value.toInt().toString() : value.toStringAsFixed(2),
                 style: TextStyle(
                   fontFamily: 'MontserratArabic',
                   fontSize: isTotal ? 20 : 14,

@@ -43,6 +43,7 @@ class OfferProductsCubit extends Cubit<OfferProductsState> {
     emit(OfferProductsLoading());
     try {
       final r = await getBranch(branchId);
+      if (isClosed) return;
       emit(
         OfferProductsLoaded(
           ticketOffers: r.ticketOffers,
@@ -50,6 +51,7 @@ class OfferProductsCubit extends Cubit<OfferProductsState> {
         ),
       );
     } catch (e) {
+      if (isClosed) return;
       emit(OfferProductsError(e.toString()));
     }
   }

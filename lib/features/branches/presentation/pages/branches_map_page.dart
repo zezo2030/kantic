@@ -10,13 +10,13 @@ import 'dart:ui' as ui;
 import '../../../home/domain/entities/branch_entity.dart';
 import '../../../../core/constants/maps_constants.dart';
 import '../../../../core/utils/url_utils.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/location_service_prompt.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class BranchesMapPage extends StatefulWidget {
   final List<BranchEntity> branches;
 
-  /// When set, map opens zoomed on this branch and shows its bottom card.
   final String? focusBranchId;
 
   const BranchesMapPage({
@@ -29,7 +29,8 @@ class BranchesMapPage extends StatefulWidget {
   State<BranchesMapPage> createState() => _BranchesMapPageState();
 }
 
-class _BranchesMapPageState extends State<BranchesMapPage> {
+class _BranchesMapPageState extends State<BranchesMapPage>
+    with SingleTickerProviderStateMixin {
   GoogleMapController? _mapController;
   Position? _userPosition;
   Set<Marker> _markers = {};
@@ -38,15 +39,36 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
   bool _isLoadingLocation = false;
   bool _locationPermissionGranted = false;
   String? _errorMessage;
+  late AnimationController _cardController;
+  late Animation<Offset> _cardSlideAnimation;
+  late Animation<double> _cardFadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _cardController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _cardSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _cardController, curve: Curves.easeOutQuart),
+        );
+    _cardFadeAnimation = CurvedAnimation(
+      parent: _cardController,
+      curve: Curves.easeOut,
+    );
     _initializeMap();
   }
 
+  @override
+  void dispose() {
+    _cardController.dispose();
+    _mapController?.dispose();
+    super.dispose();
+  }
+
   Future<void> _initializeMap() async {
-    // فلترة الفروع التي لها إحداثيات
     final branchesWithLocation = widget.branches
         .where((b) => b.latitude != null && b.longitude != null)
         .toList();
@@ -59,13 +81,8 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
       return;
     }
 
-    // محاولة الحصول على موقع المستخدم
     await _getUserLocation();
-
-    // إنشاء الماركرز
     await _createMarkers(branchesWithLocation);
-
-    // تحديد المركز الأولي للخريطة
     _setInitialCameraPosition(branchesWithLocation);
 
     setState(() {
@@ -75,9 +92,14 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
 
   Future<void> _showSnackBar(String message) async {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      ),
+    );
   }
 
   Future<bool> _requestLocationPermission() async {
@@ -117,7 +139,6 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
         return;
       }
 
-      // التحقق من الأذونات
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         final message = 'location_services_disabled_enable_gps'.tr();
@@ -152,7 +173,6 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
         _locationPermissionGranted = true;
       });
 
-      // الحصول على الموقع
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -180,12 +200,11 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
     for (final branch in branches) {
       BitmapDescriptor icon = BitmapDescriptor.defaultMarker;
 
-      // محاولة تحميل coverImage كلوجو للماركر
       if (branch.coverImage != null && branch.coverImage!.isNotEmpty) {
         try {
           icon = await _createMarkerIconFromNetwork(branch.coverImage!);
         } catch (e) {
-          // استخدام الماركر الافتراضي في حالة الخطأ
+          // fallback to default
         }
       }
 
@@ -205,6 +224,7 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
               _selectedBranch = branch;
             });
             _animateToBranch(branch);
+            _cardController.forward(from: 0);
           },
         ),
       );
@@ -225,6 +245,7 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
         return await _buildCustomMarker(imageBytes);
       }
     } catch (e) {
+      // fallback
     }
 
     return BitmapDescriptor.defaultMarker;
@@ -272,7 +293,7 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
 
     final Paint backgroundPaint = Paint()
       ..shader = const LinearGradient(
-        colors: [Color(0xFFE53935), Color(0xFFE35D5B)],
+        colors: [AppColors.primaryOrange, AppColors.primaryRed],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(Rect.fromLTWH(0, 0, markerWidth, markerHeight));
@@ -333,7 +354,6 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
 
   void _setInitialCameraPosition(List<BranchEntity> branches) {
     if (_userPosition != null) {
-      // إذا كان لدينا موقع المستخدم، استخدمه كمركز
       _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(
           LatLng(_userPosition!.latitude, _userPosition!.longitude),
@@ -341,7 +361,6 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
         ),
       );
     } else if (branches.isNotEmpty) {
-      // حساب المركز المتوسط للفروع
       final avgLat =
           branches.map((b) => b.latitude!).reduce((a, b) => a + b) /
           branches.length;
@@ -374,9 +393,7 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
     final lat = branch.latitude;
     final lng = branch.longitude;
     if (lat == null || lng == null) {
-      await _showSnackBar(
-        'branch_coordinates_unavailable'.tr(),
-      );
+      await _showSnackBar('branch_coordinates_unavailable'.tr());
       return;
     }
 
@@ -388,9 +405,7 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      await _showSnackBar(
-        'could_not_open_maps'.tr(),
-      );
+      await _showSnackBar('could_not_open_maps'.tr());
     }
   }
 
@@ -416,56 +431,99 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
   }
 
   void _navigateToHome() {
-    // الرجوع إلى الصفحة السابقة
     Navigator.pop(context);
-  }
-
-  @override
-  void dispose() {
-    _mapController?.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text('branches_map'.tr()),
-          leading: IconButton(
-            icon: Icon(
-              context.locale.languageCode == 'ar'
-                  ? Iconsax.arrow_right_3
-                  : Iconsax.arrow_left_2,
-            ),
-            onPressed: _navigateToHome,
+        backgroundColor: AppColors.backgroundColor,
+        appBar: AppBar(title: Text('branches_map'.tr())),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  color: AppColors.primaryRed,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'loading_map'.tr(),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
-        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_errorMessage != null) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text('branches_map'.tr()),
-          leading: IconButton(
-            icon: Icon(
-              context.locale.languageCode == 'ar'
-                  ? Iconsax.arrow_right_3
-                  : Iconsax.arrow_left_2,
-            ),
-            onPressed: _navigateToHome,
-          ),
-        ),
+        backgroundColor: AppColors.backgroundColor,
+        appBar: AppBar(title: Text('branches_map'.tr())),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.map_outlined, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text(_errorMessage!),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryRed.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Iconsax.map_1,
+                    size: 48,
+                    color: AppColors.primaryRed.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  _errorMessage!,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: 180,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _isLoading = true;
+                        _errorMessage = null;
+                      });
+                      _initializeMap();
+                    },
+                    icon: const Icon(Iconsax.refresh, size: 18),
+                    label: Text('retry'.tr()),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      backgroundColor: AppColors.primaryRed,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -475,7 +533,6 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
         .where((b) => b.latitude != null && b.longitude != null)
         .toList();
 
-    // حساب المركز الافتراضي
     final defaultLat =
         branchesWithLocation.map((b) => b.latitude!).reduce((a, b) => a + b) /
         branchesWithLocation.length;
@@ -484,8 +541,13 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
         branchesWithLocation.length;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         title: Text('branches_map'.tr()),
+        elevation: 0,
+        backgroundColor: AppColors.primaryRed.withValues(alpha: 0.95),
+        foregroundColor: Colors.white,
         leading: IconButton(
           icon: Icon(
             context.locale.languageCode == 'ar'
@@ -501,7 +563,10 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.my_location),
               onPressed: _centerOnUserLocation,
@@ -520,12 +585,14 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
             ),
             markers: _markers,
             myLocationEnabled: _locationPermissionGranted,
-            myLocationButtonEnabled: false, // سنستخدم زر مخصص
+            myLocationButtonEnabled: false,
             mapType: MapType.normal,
             padding: EdgeInsets.only(bottom: _selectedBranch != null ? 220 : 0),
             onTap: (_) {
               if (_selectedBranch != null) {
-                setState(() => _selectedBranch = null);
+                _cardController.reverse().then((_) {
+                  setState(() => _selectedBranch = null);
+                });
               }
             },
             onMapCreated: (GoogleMapController controller) {
@@ -536,6 +603,7 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
                 if (focus != null) {
                   setState(() => _selectedBranch = focus);
                   _animateToBranch(focus);
+                  _cardController.forward();
                   try {
                     await controller.showMarkerInfoWindow(MarkerId(focus.id));
                   } catch (_) {}
@@ -552,17 +620,28 @@ class _BranchesMapPageState extends State<BranchesMapPage> {
               bottom: 24,
               child: SafeArea(
                 top: false,
-                child: BranchMapCard(
-                  branch: _selectedBranch!,
-                  onClose: () => setState(() => _selectedBranch = null),
-                  onDetails: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/branch-details',
-                      arguments: {'branchId': _selectedBranch!.id},
-                    );
-                  },
-                  onDirections: () => _openBranchDirections(_selectedBranch!),
+                child: FadeTransition(
+                  opacity: _cardFadeAnimation,
+                  child: SlideTransition(
+                    position: _cardSlideAnimation,
+                    child: BranchMapCard(
+                      branch: _selectedBranch!,
+                      onClose: () {
+                        _cardController.reverse().then((_) {
+                          setState(() => _selectedBranch = null);
+                        });
+                      },
+                      onDetails: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/branch-details',
+                          arguments: {'branchId': _selectedBranch!.id},
+                        );
+                      },
+                      onDirections: () =>
+                          _openBranchDirections(_selectedBranch!),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -595,167 +674,313 @@ class BranchMapCard extends StatelessWidget {
               : null),
     );
 
+    final isOpen = branch.status == 'active';
+    final displayName = context.locale.languageCode == 'ar'
+        ? branch.nameAr
+        : branch.nameEn;
+
     return Material(
-      elevation: 6,
-      borderRadius: BorderRadius.circular(20),
+      elevation: 12,
+      shadowColor: Colors.black.withValues(alpha: 0.15),
+      borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 150,
-            width: double.infinity,
-            child: imageUrl.isNotEmpty
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        color: Colors.grey.shade200,
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                SizedBox(
+                  height: 140,
+                  width: double.infinity,
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              decoration: BoxDecoration(
+                                gradient: AppColors.heroGradient,
+                              ),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (_, __, ___) => Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppColors.primaryRed.withValues(alpha: 0.3),
+                                  AppColors.primaryOrange.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            child: Icon(
+                              Iconsax.gallery,
+                              color: Colors.white.withValues(alpha: 0.6),
+                              size: 40,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            gradient: AppColors.heroGradient,
+                          ),
+                          child: Icon(
+                            Iconsax.gallery,
+                            color: Colors.white.withValues(alpha: 0.6),
+                            size: 40,
+                          ),
                         ),
-                      );
-                    },
-                    errorBuilder: (_, __, ___) => Container(
-                      color: Colors.grey.shade200,
-                      child: Icon(
-                        Iconsax.gallery,
-                        color: Colors.grey.shade500,
-                        size: 40,
-                      ),
-                    ),
-                  )
-                : Container(
-                    color: Colors.grey.shade200,
-                    child: Icon(
-                      Iconsax.gallery,
-                      color: Colors.grey.shade500,
-                      size: 40,
+                ),
+                Container(
+                  height: 140,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.0),
+                        Colors.black.withValues(alpha: 0.4),
+                      ],
+                      stops: const [0.5, 1.0],
                     ),
                   ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        context.locale.languageCode == 'ar'
-                            ? branch.nameAr
-                            : branch.nameEn,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: context.locale.languageCode == 'ar' ? null : 8,
+                  left: context.locale.languageCode == 'ar' ? 8 : null,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      shape: BoxShape.circle,
                     ),
-                    IconButton(
+                    child: IconButton(
                       onPressed: onClose,
                       icon: const Icon(Iconsax.close_circle, size: 22),
-                    ),
-                  ],
-                ),
-                if (branch.location.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Iconsax.map_1,
-                        size: 16,
-                        color: Color(0xFFE11D48),
+                      color: Colors.white,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
                       ),
-                      const SizedBox(width: 6),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                if (branch.rating != null && branch.rating! > 0)
+                  Positioned(
+                    top: 8,
+                    left: context.locale.languageCode == 'ar' ? null : 8,
+                    right: context.locale.languageCode == 'ar' ? 8 : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.luxuryGold,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Iconsax.star1,
+                            size: 13,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            branch.rating!.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          if ((branch.reviewsCount ?? 0) > 0) ...[
+                            const SizedBox(width: 3),
+                            Text(
+                              '(${branch.reviewsCount})',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  bottom: 12,
+                  left: 16,
+                  right: 52,
+                  child: Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (branch.location.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryRed.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(
+                            Iconsax.location5,
+                            size: 14,
+                            color: AppColors.primaryRed,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            branch.location,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                              height: 1.3,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (isOpen) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF10B981,
+                              ).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF10B981),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'open'.tr(),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
                       Expanded(
-                        child: Text(
-                          branch.location,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            color: Colors.black87,
-                            height: 1.3,
+                        child: ElevatedButton.icon(
+                          onPressed: onDetails,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            backgroundColor: AppColors.primaryRed,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Iconsax.document_text, size: 18),
+                          label: Text(
+                            'view_details'.tr(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: onDirections,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            side: BorderSide(
+                              color: AppColors.primaryRed.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
+                            foregroundColor: AppColors.primaryRed,
+                          ),
+                          icon: const Icon(Iconsax.map_1, size: 18),
+                          label: Text(
+                            'view_on_map'.tr(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
                 ],
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(
-                      Iconsax.star1,
-                      size: 16,
-                      color: Color(0xFFF59E0B),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      branch.rating != null
-                          ? branch.rating!.toStringAsFixed(1)
-                          : '--',
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if ((branch.reviewsCount ?? 0) > 0) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        '(${branch.reviewsCount})',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: onDetails,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          backgroundColor: Theme.of(context).primaryColor,
-                          foregroundColor: Colors.white,
-                        ),
-                        icon: const Icon(Iconsax.document_text, size: 18),
-                        label: Text('view_details'.tr()),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: onDirections,
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(Iconsax.location, size: 18),
-                        label: Text('view_on_map'.tr()),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

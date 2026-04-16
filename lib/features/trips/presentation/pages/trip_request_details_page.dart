@@ -519,6 +519,11 @@ class _HeaderSection extends StatelessWidget {
   }
 }
 
+String _formatCurrency(double value) {
+  if (value % 1 == 0) return value.toInt().toString();
+  return value.toStringAsFixed(2);
+}
+
 class _InfoSection extends StatelessWidget {
   const _InfoSection({required this.request});
   final SchoolTripRequestEntity request;
@@ -579,7 +584,7 @@ class _InfoSection extends StatelessWidget {
                   icon: Iconsax.tag,
                   label: 'trip_price_per_student'.tr(),
                   value:
-                      '${request.pricePerStudent!.toStringAsFixed(2)} ${'currency'.tr()}',
+                      '${_formatCurrency(request.pricePerStudent!)} ${'currency'.tr()}',
                 ),
               ],
               _buildDivider(),
@@ -587,40 +592,40 @@ class _InfoSection extends StatelessWidget {
                 icon: Iconsax.receipt_2,
                 label: 'trip_tickets_total'.tr(),
                 value:
-                    '${(request.ticketsTotal ?? _computedTicketsTotal).toStringAsFixed(2)} ${'currency'.tr()}',
+                    '${_formatCurrency(request.ticketsTotal ?? _computedTicketsTotal)} ${'currency'.tr()}',
               ),
               _buildDivider(),
               _InfoRow(
                 icon: Iconsax.box,
                 label: 'trip_addons_total'.tr(),
                 value:
-                    '${(request.addOnsTotal ?? _computedAddOnsTotal).toStringAsFixed(2)} ${'currency'.tr()}',
+                    '${_formatCurrency(request.addOnsTotal ?? _computedAddOnsTotal)} ${'currency'.tr()}',
               ),
               _buildDivider(),
               _InfoRow(
                 icon: Iconsax.money_recive,
                 label: 'trip_grand_total'.tr(),
                 value:
-                    '${(request.totalPrice ?? request.quotedPrice ?? (_computedTicketsTotal + _computedAddOnsTotal)).toStringAsFixed(2)} ${'currency'.tr()}',
+                    '${_formatCurrency(request.totalPrice ?? request.quotedPrice ?? (_computedTicketsTotal + _computedAddOnsTotal))} ${'currency'.tr()}',
               ),
               if (request.paymentOption == 'deposit' || request.depositAmount != null) ...[
                 _buildDivider(),
-                _InfoRow(
-                  icon: Iconsax.card,
-                  label: 'trip_deposit'.tr(),
-                  value:
-                      '${(request.depositAmount ?? ((request.totalPrice ?? request.quotedPrice ?? (_computedTicketsTotal + _computedAddOnsTotal)) * 0.2)).toStringAsFixed(2)} ${'currency'.tr()}',
-                ),
-                if (remainingBalance > 0) ...[
-                  _buildDivider(),
                   _InfoRow(
-                    icon: Iconsax.wallet_add,
-                    label: 'trip_remaining_balance'.tr(),
+                    icon: Iconsax.card,
+                    label: 'trip_deposit'.tr(),
                     value:
-                        '${remainingBalance.toStringAsFixed(2)} ${'currency'.tr()}',
+                        '${_formatCurrency(request.depositAmount ?? ((request.totalPrice ?? request.quotedPrice ?? (_computedTicketsTotal + _computedAddOnsTotal)) * 0.2))} ${'currency'.tr()}',
                   ),
+                  if (remainingBalance > 0) ...[
+                    _buildDivider(),
+                    _InfoRow(
+                      icon: Iconsax.wallet_add,
+                      label: 'trip_remaining_balance'.tr(),
+                      value:
+                          '${_formatCurrency(remainingBalance)} ${'currency'.tr()}',
+                    ),
+                  ],
                 ],
-              ],
               if (request.specialRequirements != null &&
                   request.specialRequirements!.isNotEmpty) ...[
                 _buildDivider(),
@@ -918,7 +923,7 @@ class _ActionsSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${payableAmount!.toStringAsFixed(2)} ${'currency'.tr()}',
+                  '${_formatCurrency(payableAmount!)} ${'currency'.tr()}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

@@ -1,6 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -40,9 +42,10 @@ class TripRequestWizardPage extends StatefulWidget {
   State<TripRequestWizardPage> createState() => _TripRequestWizardPageState();
 }
 
-class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
+class _TripRequestWizardPageState extends State<TripRequestWizardPage>
+    with TickerProviderStateMixin {
   int _currentStep = 0;
-  final int _totalSteps = 4;
+  final int _totalSteps = 2;
 
   late final CreateTripRequestCubit _cubit;
   final _formKey = GlobalKey<FormState>();
@@ -50,12 +53,10 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
   final _specialRequestController = TextEditingController();
   final _studentsCountController = TextEditingController();
 
-  // Branch selection state
   List<Map<String, dynamic>> availableBranches = [];
   bool isLoadingBranches = false;
   String? branchesError;
 
-  // School trip slots from GET /trips/config
   List<String> tripTimeSlots = [];
   String? selectedTripSlotLabel;
   bool tripConfigLoading = false;
@@ -63,12 +64,19 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
   Map<String, dynamic> tripConfig = {};
   final Map<String, int> tripAddonQtyById = {};
 
+  late AnimationController _stepController;
+
   @override
   void initState() {
     super.initState();
     _cubit = trips_di.sl<CreateTripRequestCubit>();
     _studentsCountController.text = _cubit.studentsCount.toString();
-    _loadBranches(); // Load available branches
+    _stepController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _stepController.forward();
+    _loadBranches();
 
     if (widget.branchId != null) {
       _cubit.updateSelectedBranchId(widget.branchId!);
@@ -77,6 +85,7 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
 
   @override
   void dispose() {
+    _stepController.dispose();
     _cubit.close();
     _schoolNameController.dispose();
     _specialRequestController.dispose();
@@ -109,7 +118,6 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
       setState(() {
         branchesError = 'Failed to load branches: ${e.toString()}';
         isLoadingBranches = false;
-        // Fallback mock data
         availableBranches = [
           {
             'id': '1',
@@ -185,6 +193,7 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
   }
 
   void _onTripSlotSelected(String label) {
+    HapticFeedback.selectionClick();
     setState(() {
       selectedTripSlotLabel = label;
     });
@@ -199,6 +208,7 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
   }
 
   void _bumpTripAddonQuantity(String id, int delta) {
+    HapticFeedback.selectionClick();
     final cur = tripAddonQtyById[id] ?? 0;
     final next = (cur + delta).clamp(0, 99);
     setState(() {
@@ -226,8 +236,8 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
       final price = priceVal is int
           ? priceVal
           : (priceVal is num
-              ? priceVal.toInt()
-              : int.tryParse(priceVal?.toString() ?? '0') ?? 0);
+                ? priceVal.toInt()
+                : int.tryParse(priceVal?.toString() ?? '0') ?? 0);
       _cubit.addAddon(
         TripAddOnEntity(id: id, name: name, price: price, quantity: qty),
       );
@@ -262,20 +272,20 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
     return _grandTotal() * (_cubit.depositPercent / 100);
   }
 
-  String _money(double value) => value.toStringAsFixed(2);
+  String _money(double value) {
+    if (value % 1 == 0) return value.toInt().toString();
+    return value.toStringAsFixed(2);
+  }
 
   bool _canProceedFromStep(int step) {
     switch (step) {
-      case 0: // School info & Branch
+      case 0:
         return _cubit.schoolName.isNotEmpty &&
             _cubit.selectedBranchId != null &&
-            _cubit.selectedBranchId!.isNotEmpty;
-      case 1: // Schedule & Addons
-        return selectedTripSlotLabel != null && 
-               _cubit.studentsCount >= _cubit.minimumStudentsForCreate;
-      case 2: // Payment & Notes
-        return _cubit.paymentOption.isNotEmpty;
-      case 3: // Summary
+            _cubit.selectedBranchId!.isNotEmpty &&
+            selectedTripSlotLabel != null &&
+            _cubit.studentsCount >= _cubit.minimumStudentsForCreate;
+      case 1:
         return true;
       default:
         return false;
@@ -293,10 +303,11 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
 
   void _nextStep() {
     if (_currentStep < _totalSteps - 1 && _canProceedFromStep(_currentStep)) {
-      final fromStep = _currentStep;
+      HapticFeedback.mediumImpact();
       setState(() => _currentStep++);
-
-      if (fromStep == 0 && _currentStep == 1) {
+      _stepController.reset();
+      _stepController.forward();
+      if (_currentStep == 1) {
         if (_cubit.selectedBranchId != null &&
             _cubit.selectedBranchId!.isNotEmpty &&
             tripTimeSlots.isEmpty &&
@@ -305,132 +316,230 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
         }
       }
     } else {
-      // Force rebuild to update button state
       setState(() {});
     }
   }
 
   void _previousStep() {
     if (_currentStep > 0) {
+      HapticFeedback.lightImpact();
       setState(() => _currentStep--);
+      _stepController.reset();
+      _stepController.forward();
     }
   }
 
   String _getStepTitle(int step) {
     switch (step) {
       case 0:
-        return 'school_info'.tr();
+        return 'trip_details'.tr();
       case 1:
-        return 'trip_schedule'.tr();
-      case 2:
-        return 'trip_payment_option'.tr();
-      case 3:
         return 'trip_summary'.tr();
       default:
         return '';
     }
   }
 
+  IconData _getStepIcon(int step) {
+    switch (step) {
+      case 0:
+        return Iconsax.edit;
+      case 1:
+        return Iconsax.document_text;
+      default:
+        return Iconsax.arrow_right;
+    }
+  }
+
   Widget _buildProgressIndicator() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Step titles
-          Row(
-            children: List.generate(_totalSteps, (index) {
-              final isActive = index == _currentStep;
-              final isCompleted = index < _currentStep;
+      child: Row(
+        children: List.generate(_totalSteps, (index) {
+          final isActive = index == _currentStep;
+          final isCompleted = index < _currentStep;
 
-              return Expanded(
-                child: Column(
-                  children: [
-                    // Circle indicator
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isCompleted || isActive
-                            ? AppColors.primaryRed
-                            : Colors.grey.shade200,
-                      ),
-                      child: Center(
-                        child: isCompleted
-                            ? const Icon(
-                                Icons.check,
-                                color: Colors.white,
-                                size: 18,
-                              )
-                            : Text(
-                                '${index + 1}',
-                                style: TextStyle(
-                                  color: isActive
-                                      ? Colors.white
-                                      : Colors.grey.shade600,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                      ),
+          return Expanded(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutQuart,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+              decoration: BoxDecoration(
+                gradient: isActive ? AppColors.primaryGradient : null,
+                color: isCompleted
+                    ? const Color(0xFFF8FAFC)
+                    : (isActive ? null : Colors.transparent),
+                borderRadius: BorderRadius.circular(12),
+                border: isCompleted
+                    ? Border.all(color: const Color(0xFFE2E8F0), width: 1)
+                    : Border.all(color: Colors.transparent, width: 1),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isActive
+                          ? Colors.white.withValues(alpha: 0.25)
+                          : (isCompleted
+                              ? AppColors.successColor.withValues(alpha: 0.1)
+                              : const Color(0xFFF1F5F9)),
                     ),
-                    const SizedBox(height: 8),
-                    // Step title
-                    Text(
+                    child: Center(
+                      child: isCompleted
+                          ? const Icon(Iconsax.tick_circle, color: AppColors.successColor, size: 14)
+                          : Icon(
+                              _getStepIcon(index),
+                              size: 14,
+                              color: isActive
+                                  ? Colors.white
+                                  : const Color(0xFF94A3B8),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
                       _getStepTitle(index),
                       style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: isActive
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                        fontSize: 13,
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
                         color: isActive
-                            ? AppColors.primaryRed
-                            : Colors.grey.shade500,
+                            ? Colors.white
+                            : (isCompleted
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFF94A3B8)),
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 12),
-          // Progress bar
-          Row(
-            children: List.generate(_totalSteps - 1, (index) {
-              final isCompleted = index < _currentStep;
-              return Expanded(
-                child: Container(
-                  height: 2,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: isCompleted
-                        ? AppColors.primaryRed
-                        : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(1),
                   ),
-                ),
-              );
-            }),
-          ),
-        ],
+                ],
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
 
+  Widget _buildSectionCard({
+    required IconData icon,
+    required String title,
+    required Color accentColor,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.04),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: accentColor, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: child,
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms, curve: Curves.easeOutQuart).slideY(
+      begin: 0.1,
+      duration: 400.ms,
+      curve: Curves.easeOutQuart,
+    );
+  }
+
   Widget _buildStepContent() {
+    return AnimatedBuilder(
+      animation: _stepController,
+      builder: (context, _) {
+        final slideOffset =
+            Tween<Offset>(
+              begin: const Offset(0.08, 0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(
+                parent: _stepController,
+                curve: Curves.easeOutQuart,
+              ),
+            );
+        final fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+          CurvedAnimation(parent: _stepController, curve: Curves.easeOutQuart),
+        );
+
+        return SlideTransition(
+          position: slideOffset,
+          child: FadeTransition(
+            opacity: fadeAnimation,
+            child: _buildCurrentStep(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCurrentStep() {
     switch (_currentStep) {
       case 0:
         return Column(
@@ -438,25 +547,17 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
             _buildStep0SchoolInfo(),
             const SizedBox(height: 16),
             _buildStep1BranchHall(),
-          ],
-        );
-      case 1:
-        return Column(
-          children: [
+            const SizedBox(height: 16),
             _buildScheduleSection(context),
             const SizedBox(height: 16),
             _buildAddOnsSection(context),
-          ],
-        );
-      case 2:
-        return Column(
-          children: [
+            const SizedBox(height: 16),
             _buildTripPaymentSection(context),
             const SizedBox(height: 16),
             _buildNotesSection(context),
-          ],
+          ].animate(interval: 50.ms).fadeIn(duration: 400.ms).slideY(begin: 0.05),
         );
-      case 3:
+      case 1:
         return _buildTripSummary();
       default:
         return const SizedBox.shrink();
@@ -484,57 +585,79 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
         child: BlocBuilder<CreateTripRequestCubit, CreateTripRequestState>(
           builder: (context, state) {
             return Scaffold(
-              backgroundColor: AppColors.backgroundColor,
+              backgroundColor: const Color(0xFFF8FAFC),
               appBar: AppBar(
-                backgroundColor: AppColors.backgroundColor,
+                backgroundColor: Colors.white,
                 elevation: 0,
                 scrolledUnderElevation: 0,
-                iconTheme: const IconThemeData(color: AppColors.textPrimary),
+                surfaceTintColor: Colors.transparent,
+                iconTheme: const IconThemeData(color: Color(0xFF1E293B)),
                 title: Text(
                   'create_trip_request'.tr(),
                   style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                    fontWeight: FontWeight.w800,
                     fontSize: 20,
+                    letterSpacing: -0.3,
                   ),
                 ),
                 centerTitle: true,
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(0),
+                  child: Container(height: 1, color: const Color(0xFFF1F5F9)),
+                ),
               ),
               body: Theme(
                 data: Theme.of(context).copyWith(
                   inputDecorationTheme: InputDecorationTheme(
                     filled: true,
-                    fillColor: Colors.grey.shade50,
+                    fillColor: const Color(0xFFF8FAFC),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 16,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       borderSide: const BorderSide(
                         color: AppColors.primaryRed,
                         width: 2,
                       ),
                     ),
-                    prefixIconColor: AppColors.textSecondary,
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.errorColor),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                        color: AppColors.errorColor,
+                        width: 2,
+                      ),
+                    ),
+                    prefixIconColor: const Color(0xFF94A3B8),
+                    labelStyle: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    hintStyle: const TextStyle(
+                      color: Color(0xFFCBD5E1),
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
                 ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     children: [
-                      // Progress Indicator
                       _buildProgressIndicator(),
-
-                      // Step Content
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.all(16),
@@ -559,56 +682,51 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
     final canSubmit = isLastStep ? _isAllDataComplete() : canProceed;
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1)),
       ),
       child: SafeArea(
         child: Row(
           children: [
-            // Back button
-            if (_currentStep > 0)
+            if (_currentStep > 0) ...[
               Expanded(
                 child: OutlinedButton(
                   onPressed: isSubmitting ? null : _previousStep,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(
-                      color: Theme.of(context).primaryColor,
-                      width: 2,
-                    ),
+                    side: const BorderSide(color: Color(0xFFE2E8F0), width: 2),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
+                    backgroundColor: Colors.white,
                   ),
                   child: Text(
                     'previous'.tr(),
-                    style: const TextStyle(fontSize: 16),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF475569),
+                    ),
                   ),
                 ),
               ),
-
-            if (_currentStep > 0) const SizedBox(width: 12),
-
-            // Next/Submit button
+              const SizedBox(width: 12),
+            ],
             Expanded(
               flex: _currentStep == 0 ? 1 : 1,
-              child: DecoratedBox(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutQuart,
                 decoration: BoxDecoration(
                   gradient: canSubmit && !isSubmitting
                       ? AppColors.primaryGradient
                       : null,
                   color: canSubmit && !isSubmitting
                       ? null
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: ElevatedButton(
                   onPressed: canSubmit && !isSubmitting
@@ -616,16 +734,14 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
                       : null,
                   style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.white,
-                    disabledForegroundColor: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant,
+                    disabledForegroundColor: const Color(0xFF94A3B8),
                     backgroundColor: Colors.transparent,
                     disabledBackgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   child: isSubmitting
@@ -639,11 +755,23 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
                             ),
                           ),
                         )
-                      : Text(
-                          isLastStep
-                              ? 'submit_new_trip'.tr()
-                              : 'continue_step'.tr(),
-                          style: const TextStyle(fontSize: 16),
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                              Text(
+                                isLastStep
+                                    ? 'confirm_and_submit'.tr()
+                                    : 'review_request'.tr(),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (!isLastStep) ...[
+                              const SizedBox(width: 6),
+                              const Icon(Iconsax.arrow_right_3, size: 16),
+                            ],
+                          ],
                         ),
                 ),
               ),
@@ -655,130 +783,927 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
   }
 
   Widget _buildStep0SchoolInfo() {
-    return _buildBasicInfoSection(context);
-  }
-
-  Widget _buildStep1BranchHall() {
-    return _buildBranchHallSection();
-  }
-
-  Widget _buildBranchHallSection() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColor.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+    return _buildSectionCard(
+      icon: Iconsax.teacher,
+      title: 'school_details'.tr(),
+      accentColor: AppColors.primaryOrange,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'enter_school_name_hint'.tr(),
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _schoolNameController,
+            decoration: InputDecoration(
+              labelText: 'school_name'.tr(),
+              prefixIcon: const Icon(Iconsax.teacher),
+            ),
+            onChanged: (value) {
+              _cubit.updateSchoolName(value);
+              setState(() {});
+            },
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'provide_school_name'.tr();
+              }
+              return null;
+            },
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryRed.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Iconsax.building,
-                    color: AppColors.primaryRed,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'branch_selection'.tr(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+    );
+  }
 
-            // Branch Selection
-            if (isLoadingBranches)
-              const Center(child: CircularProgressIndicator())
-            else if (branchesError != null)
+  Widget _buildStep1BranchHall() {
+    return _buildSectionCard(
+      icon: Iconsax.building,
+      title: 'branch_selection'.tr(),
+      accentColor: AppColors.primaryRed,
+      child: isLoadingBranches
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : branchesError != null
+          ? Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.errorColor.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.errorColor.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Iconsax.warning_2,
+                    color: AppColors.errorColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      branchesError!,
+                      style: TextStyle(
+                        color: AppColors.errorColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : DropdownButtonFormField<String>(
+              initialValue: _cubit.selectedBranchId,
+              decoration: InputDecoration(
+                labelText: 'select_branch'.tr(),
+                prefixIcon: const Icon(Iconsax.building),
+              ),
+              items: availableBranches.map((branch) {
+                final nameAr = (branch['name_ar'] ?? branch['nameAr'] ?? '')
+                    .toString();
+                final nameEn = (branch['name_en'] ?? branch['nameEn'] ?? '')
+                    .toString();
+                final displayName = nameAr.isNotEmpty
+                    ? nameAr
+                    : (nameEn.isNotEmpty ? nameEn : 'unknown_branch'.tr());
+                return DropdownMenuItem<String>(
+                  value: branch['id'] as String,
+                  child: Text(displayName),
+                );
+              }).toList(),
+              onChanged: (value) {
+                HapticFeedback.selectionClick();
+                _cubit.updateSelectedBranchId(value);
+                if (value != null && value.isNotEmpty) {
+                  setState(() {
+                    selectedTripSlotLabel = null;
+                    _cubit.updatePreferredTime(null);
+                  });
+                  _fetchTripConfig();
+                } else {
+                  setState(() {
+                    tripTimeSlots = [];
+                    selectedTripSlotLabel = null;
+                  });
+                }
+                setState(() {});
+              },
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'please_select_branch'.tr();
+                }
+                return null;
+              },
+            ),
+    );
+  }
+
+  Widget _buildScheduleSection(BuildContext context) {
+    final formattedDate = DateFormat.yMMMMd(
+      context.locale.toString(),
+    ).format(_cubit.preferredDate);
+
+    return _buildSectionCard(
+      icon: Iconsax.calendar_1,
+      title: 'trip_schedule'.tr(),
+      accentColor: AppColors.primaryOrange,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDatePicker(context, formattedDate),
+          const SizedBox(height: 16),
+          if (tripConfigLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (tripConfigError != null)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.errorColor.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.errorColor.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Iconsax.warning_2,
+                    color: AppColors.errorColor,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      tripConfigError!,
+                      style: TextStyle(
+                        color: AppColors.errorColor,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (tripTimeSlots.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.luxuryGold.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.luxuryGold.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Iconsax.info_circle,
+                    color: AppColors.luxuryGold,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'no_slots_available_for_date'.tr(),
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            Text(
+              'booking_step_date_time'.tr(),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: tripTimeSlots.map((label) {
+                final selected = selectedTripSlotLabel == label;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutQuart,
+                  decoration: BoxDecoration(
+                    gradient: selected ? AppColors.primaryGradient : null,
+                    color: !selected ? Colors.white : null,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected
+                          ? AppColors.primaryRed
+                          : const Color(0xFFE2E8F0),
+                      width: selected ? 2 : 1,
+                    ),
+                    boxShadow: selected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primaryRed.withValues(
+                                alpha: 0.25,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _onTripSlotSelected(label),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : const Color(0xFF475569),
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            if (_cubit.durationHours != null) ...[
+              const SizedBox(height: 14),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: AppColors.primaryOrange.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.shade200),
                 ),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.error_outline, color: Colors.red.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        branchesError!,
-                        style: TextStyle(color: Colors.red.shade700),
+                    const Icon(
+                      Iconsax.clock,
+                      size: 14,
+                      color: AppColors.primaryOrange,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${'duration_hours'.tr()}: ${_cubit.durationHours}',
+                      style: const TextStyle(
+                        color: AppColors.primaryOrange,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
                       ),
                     ),
                   ],
                 ),
-              )
-            else
-              DropdownButtonFormField<String>(
-                initialValue: _cubit.selectedBranchId,
-                decoration: InputDecoration(
-                  labelText: 'select_branch'.tr(),
-                  prefixIcon: const Icon(Icons.business),
-                ),
-                items: availableBranches.map((branch) {
-                  final nameAr = (branch['name_ar'] ?? branch['nameAr'] ?? '')
-                      .toString();
-                  final nameEn = (branch['name_en'] ?? branch['nameEn'] ?? '')
-                      .toString();
-                  final displayName = nameAr.isNotEmpty
-                      ? nameAr
-                      : (nameEn.isNotEmpty ? nameEn : 'unknown_branch'.tr());
-                  return DropdownMenuItem<String>(
-                    value: branch['id'] as String,
-                    child: Text(displayName),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  _cubit.updateSelectedBranchId(value);
-                  if (value != null && value.isNotEmpty) {
-                    setState(() {
-                      selectedTripSlotLabel = null;
-                      _cubit.updatePreferredTime(null);
-                    });
-                    _fetchTripConfig();
-                  } else {
-                    setState(() {
-                      tripTimeSlots = [];
-                      selectedTripSlotLabel = null;
-                    });
-                  }
-                  setState(() {});
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'please_select_branch'.tr();
-                  }
-                  return null;
-                },
               ),
-
+            ],
+            const SizedBox(height: 20),
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
             const SizedBox(height: 16),
+            Text(
+              'students_count'.tr(),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _studentsCountController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'students_count'.tr(),
+                prefixIcon: const Icon(Iconsax.profile_2user),
+                helperText: tr(
+                  'trip_min_students_note',
+                  args: [_cubit.minimumStudentsForCreate.toString()],
+                ),
+                helperStyle: const TextStyle(
+                  color: AppColors.primaryRed,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                ),
+                helperMaxLines: 3,
+                errorMaxLines: 3,
+              ),
+              onChanged: (val) {
+                final parsed = int.tryParse(val) ?? 0;
+                _cubit.updateStudentsCount(parsed);
+                setState(() {});
+              },
+              validator: (val) {
+                final parsed = int.tryParse(val ?? '') ?? 0;
+                if (parsed < _cubit.minimumStudentsForCreate) {
+                  return tr(
+                    'trip_min_students_error',
+                    args: [_cubit.minimumStudentsForCreate.toString()],
+                  );
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primaryRed.withValues(alpha: 0.06),
+                    AppColors.primaryOrange.withValues(alpha: 0.04),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.primaryRed.withValues(alpha: 0.15),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tr(
+                            'trip_price_per_student_value',
+                            args: [_money(_cubit.ticketPricePerStudent)],
+                          ),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    tr(
+                      'trip_tickets_total_value',
+                      args: [_money(_ticketsTotal())],
+                    ),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryRed,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDatePicker(BuildContext context, String formattedDate) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () async {
+          final now = DateTime.now();
+          final tomorrow = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).add(const Duration(days: 1));
+
+          DateTime initial = _cubit.preferredDate;
+          if (initial.isBefore(tomorrow)) {
+            initial = tomorrow;
+          }
+
+          final picked = await showDatePicker(
+            context: context,
+            firstDate: tomorrow,
+            lastDate: now.add(const Duration(days: 365)),
+            initialDate: initial,
+            builder: (context, child) {
+              return Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: const ColorScheme.light(
+                    primary: AppColors.primaryRed,
+                    onPrimary: Colors.white,
+                    surface: Colors.white,
+                    onSurface: Color(0xFF1E293B),
+                  ),
+                ),
+                child: child!,
+              );
+            },
+          );
+          if (picked != null) {
+            HapticFeedback.selectionClick();
+            _cubit.updatePreferredDate(picked);
+            setState(() {
+              selectedTripSlotLabel = null;
+              _cubit.updatePreferredTime(null);
+            });
+            if (_cubit.selectedBranchId != null &&
+                _cubit.selectedBranchId!.isNotEmpty) {
+              _fetchTripConfig();
+            } else {
+              setState(() {
+                tripTimeSlots = [];
+              });
+            }
+            setState(() {});
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryOrange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Iconsax.calendar_1,
+                  color: AppColors.primaryOrange,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'preferred_date'.tr(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      formattedDate,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Iconsax.arrow_down_1,
+                size: 16,
+                color: Color(0xFF94A3B8),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTripPaymentSection(BuildContext context) {
+    return _buildSectionCard(
+      icon: Iconsax.wallet,
+      title: 'trip_payment_option'.tr(),
+      accentColor: AppColors.luxuryGold,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildPaymentOption(
+            value: 'full',
+            label: 'trip_pay_full'.tr(),
+            subtitle: tr(
+              'trip_grand_total_value',
+              args: [_money(_grandTotal())],
+            ),
+            icon: Iconsax.wallet_check,
+          ),
+          const SizedBox(height: 10),
+          _buildPaymentOption(
+            value: 'deposit',
+            label: 'trip_pay_deposit'.tr(),
+            subtitle: tr(
+              'trip_deposit_amount_value',
+              args: [_money(_cubit.depositPercent), _money(_depositAmount())],
+            ),
+            icon: Iconsax.wallet_money,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption({
+    required String value,
+    required String label,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final isSelected = _cubit.paymentOption == value;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _cubit.updatePaymentOption(value);
+        setState(() {});
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutQuart,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primaryRed.withValues(alpha: 0.04)
+              : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryRed : const Color(0xFFE2E8F0),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: isSelected ? AppColors.primaryGradient : null,
+                color: !isSelected ? const Color(0xFFE2E8F0) : null,
+                border: !isSelected
+                    ? Border.all(color: const Color(0xFFCBD5E1), width: 2)
+                    : null,
+              ),
+              child: isSelected
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 14),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.primaryRed.withValues(alpha: 0.1)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: isSelected
+                    ? AppColors.primaryRed
+                    : const Color(0xFF94A3B8),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: isSelected
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isSelected
+                          ? AppColors.primaryRed
+                          : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAddOnsSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final catalog = _tripAddonCatalog;
+
+    return _buildSectionCard(
+      icon: Iconsax.category,
+      title: 'trip_addons'.tr(),
+      accentColor: AppColors.luxuryGold,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'trip_addons_hint'.tr(),
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (catalog.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFF1F5F9)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Iconsax.info_circle,
+                    color: Color(0xFF94A3B8),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'no_addons_selected'.tr(),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...catalog.map((item) {
+              final id = item['id']?.toString() ?? '';
+              final name = item['name']?.toString() ?? id;
+              final priceVal = item['price'];
+              final price = priceVal is int
+                  ? priceVal
+                  : (priceVal is num
+                        ? priceVal.toInt()
+                        : int.tryParse(priceVal?.toString() ?? '0') ?? 0);
+              final qty = tripAddonQtyById[id] ?? 0;
+              final itemTotal = price * qty;
+              final description = item['description']?.toString();
+              final hasQty = qty > 0;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutQuart,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: hasQty
+                        ? AppColors.luxuryGold.withValues(alpha: 0.04)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: hasQty
+                          ? AppColors.luxuryGold.withValues(alpha: 0.3)
+                          : const Color(0xFFF1F5F9),
+                      width: hasQty ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: hasQty
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: hasQty
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFF64748B),
+                              ),
+                            ),
+                            Text(
+                              '$price ${'riyal'.tr()}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF94A3B8),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            if (description != null && description.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  description,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ),
+                            if (hasQty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  tr(
+                                    'trip_item_total_value',
+                                    args: [_money(itemTotal.toDouble())],
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.luxuryGold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildQuantityButton(
+                            icon: Iconsax.minus,
+                            onPressed: qty <= 0
+                                ? null
+                                : () => _bumpTripAddonQuantity(id, -1),
+                            isActive: qty > 0,
+                          ),
+                          Container(
+                            width: 36,
+                            alignment: Alignment.center,
+                            child: Text(
+                              '$qty',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                color: hasQty
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ),
+                          _buildQuantityButton(
+                            icon: Iconsax.add,
+                            onPressed: id.isEmpty
+                                ? null
+                                : () => _bumpTripAddonQuantity(id, 1),
+                            isActive: true,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          if (catalog.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.luxuryGold.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Iconsax.calculator,
+                    size: 14,
+                    color: AppColors.luxuryGold,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'trip_addons_total'.tr(),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF475569),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${_money(_addonsTotal())} ${'riyal'.tr()}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.luxuryGold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuantityButton({
+    required IconData icon,
+    required VoidCallback? onPressed,
+    required bool isActive,
+  }) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: isActive
+            ? AppColors.primaryRed.withValues(alpha: 0.1)
+            : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: IconButton(
+        icon: Icon(icon, size: 16),
+        onPressed: onPressed,
+        color: isActive ? AppColors.primaryRed : const Color(0xFFCBD5E1),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      ),
+    );
+  }
+
+  Widget _buildNotesSection(BuildContext context) {
+    return _buildSectionCard(
+      icon: Iconsax.note_2,
+      title: 'additional_notes'.tr(),
+      accentColor: const Color(0xFF64748B),
+      child: TextFormField(
+        controller: _specialRequestController,
+        decoration: InputDecoration(
+          hintText: 'special_requirements_hint'.tr(),
+          alignLabelWithHint: true,
+        ),
+        maxLines: null,
+        minLines: 3,
+        onChanged: (value) {
+          _cubit.updateSpecialRequirements(value);
+          setState(() {});
+        },
       ),
     );
   }
@@ -793,168 +1718,339 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadowColor.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            color: AppColors.primaryRed.withValues(alpha: 0.08),
+            blurRadius: 32,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFE11D48), Color(0xFFBE123C)],
+              ),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(28),
+                topRight: Radius.circular(28),
+              ),
+            ),
+            child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryRed.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: const Icon(
-                    Iconsax.document_text,
-                    color: AppColors.primaryRed,
-                    size: 22,
+                    Iconsax.document_text5,
+                    color: Colors.white,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  'trip_summary'.tr(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'trip_summary'.tr(),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'review_your_trip_details'.tr(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-
-            // School info
-            if (_cubit.schoolName.isNotEmpty)
-              _buildSummaryRow('school_name'.tr(), _cubit.schoolName),
-
-            _buildSummaryRow(
-              'students_count'.tr(),
-              '${_cubit.studentsCount} ${'persons'.tr()}',
-            ),
-
-            // Branch
-            if (_cubit.selectedBranchId != null)
-              _buildSummaryRow(
-                'branch'.tr(),
-                _getBranchName(_cubit.selectedBranchId!),
-              ),
-
-            // Date and Time
-            if (selectedTripSlotLabel != null)
-              _buildSummaryRow(
-                'date_time'.tr(),
-                '${DateFormat('yyyy/MM/dd').format(_cubit.preferredDate)} · $selectedTripSlotLabel',
-              ),
-
-            // Duration
-            if (_cubit.durationHours != null)
-              _buildSummaryRow(
-                'duration'.tr(),
-                '${_cubit.durationHours} ${'hours'.tr()}',
-              ),
-
-            // Add-ons
-            if (_cubit.addOns.isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  Text(
-                    'selected_addons'.tr(),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_cubit.schoolName.isNotEmpty)
+                  _buildSummaryItem(
+                    icon: Iconsax.teacher,
+                    label: 'school_name'.tr(),
+                    value: _cubit.schoolName,
                   ),
-                  const SizedBox(height: 4),
-                  ..._cubit.addOns.map(
-                    (addon) => Padding(
-                      padding: const EdgeInsets.only(right: 8, bottom: 4),
-                      child: Text('• ${addon.name} ×${addon.quantity}'),
-                    ),
-                  ),
-                ],
-              ),
-
-            const Divider(height: 28),
-            _buildSummaryRow(
-              'trip_price_per_student'.tr(),
-              '${_money(_cubit.ticketPricePerStudent)} ${'riyal'.tr()}',
-            ),
-            _buildSummaryRow(
-              'trip_tickets_total'.tr(),
-              '${_money(ticketsTotal)} ${'riyal'.tr()}',
-            ),
-            _buildSummaryRow(
-              'trip_addons_total'.tr(),
-              '${_money(addonsTotal)} ${'riyal'.tr()}',
-            ),
-            _buildSummaryRow(
-              'trip_grand_total'.tr(),
-              '${_money(grandTotal)} ${'riyal'.tr()}',
-            ),
-            if (_cubit.paymentOption == 'deposit')
-              _buildSummaryRow(
-                tr(
-                  'trip_deposit_with_percent',
-                  args: [_money(_cubit.depositPercent)],
+                _buildSummaryItem(
+                  icon: Iconsax.profile_2user,
+                  label: 'students_count'.tr(),
+                  value: '${_cubit.studentsCount} ${'persons'.tr()}',
                 ),
-                '${_money(depositAmount)} ${'riyal'.tr()}',
-              ),
-          ],
-        ),
+                if (_cubit.selectedBranchId != null)
+                  _buildSummaryItem(
+                    icon: Iconsax.building,
+                    label: 'branch'.tr(),
+                    value: _getBranchName(_cubit.selectedBranchId!),
+                  ),
+                if (selectedTripSlotLabel != null)
+                  _buildSummaryItem(
+                    icon: Iconsax.calendar_1,
+                    label: 'date_time'.tr(),
+                    value:
+                        '${DateFormat('yyyy/MM/dd').format(_cubit.preferredDate)} · $selectedTripSlotLabel',
+                  ),
+                if (_cubit.durationHours != null)
+                  _buildSummaryItem(
+                    icon: Iconsax.clock,
+                    label: 'duration'.tr(),
+                    value: '${_cubit.durationHours} ${'hours'.tr()}',
+                  ),
+                if (_cubit.addOns.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 12),
+                      const Divider(color: Color(0xFFF1F5F9)),
+                      const SizedBox(height: 12),
+                      Text(
+                        'selected_addons'.tr(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._cubit.addOns.map(
+                        (addon) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.luxuryGold,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${addon.name} ×${addon.quantity}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (_cubit.specialRequirements != null &&
+                    _cubit.specialRequirements!.isNotEmpty)
+                  _buildSummaryItem(
+                    icon: Iconsax.note_21,
+                    label: 'additional_notes'.tr(),
+                    value: _cubit.specialRequirements!,
+                  ),
+                const SizedBox(height: 16),
+                const Divider(color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 12),
+                _buildSummaryRow(
+                  'trip_price_per_student'.tr(),
+                  '${_money(_cubit.ticketPricePerStudent)} ${'riyal'.tr()}',
+                ),
+                _buildSummaryRow(
+                  'trip_tickets_total'.tr(),
+                  '${_money(ticketsTotal)} ${'riyal'.tr()}',
+                ),
+                if (addonsTotal > 0)
+                  _buildSummaryRow(
+                    'trip_addons_total'.tr(),
+                    '${_money(addonsTotal)} ${'riyal'.tr()}',
+                  ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.primaryRed.withValues(alpha: 0.08),
+                        AppColors.primaryOrange.withValues(alpha: 0.04),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppColors.primaryRed.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'trip_grand_total'.tr(),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      Text(
+                        '${_money(grandTotal)} ${'riyal'.tr()}',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primaryRed,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_cubit.paymentOption == 'deposit')
+                  Container(
+                    margin: const EdgeInsets.only(top: 10),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.luxuryGold.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.luxuryGold.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Iconsax.wallet_money,
+                          size: 16,
+                          color: AppColors.luxuryGold,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            tr(
+                              'trip_deposit_with_percent',
+                              args: [_money(_cubit.depositPercent)],
+                            ),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.luxuryGold,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${_money(depositAmount)} ${'riyal'.tr()}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.luxuryGold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryItem({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, size: 14, color: const Color(0xFF64748B)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSummaryRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          SizedBox(
-            width: 120,
-            child: Row(
-              children: [
-                const Icon(
-                  Iconsax.arrow_right_3,
-                  size: 14,
-                  color: AppColors.primaryRed,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFF64748B),
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E293B),
             ),
           ),
         ],
@@ -972,566 +2068,6 @@ class _TripRequestWizardPageState extends State<TripRequestWizardPage> {
     );
     return (branch['name_ar'] ?? branch['nameAr'] ?? 'unknown_branch'.tr())
         .toString();
-  }
-
-  Widget _buildBasicInfoSection(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColor.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryRed.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Iconsax.teacher,
-                    color: AppColors.primaryRed,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'school_details'.tr(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _schoolNameController,
-              decoration: InputDecoration(
-                labelText: 'school_name'.tr(),
-                prefixIcon: const Icon(Icons.school_outlined),
-              ),
-              onChanged: (value) {
-                _cubit.updateSchoolName(value);
-                setState(() {}); // Rebuild to update Next button state
-              },
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'provide_school_name'.tr();
-                }
-                return null;
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScheduleSection(BuildContext context) {
-    final formattedDate = DateFormat.yMMMMd(
-      context.locale.toString(),
-    ).format(_cubit.preferredDate);
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColor.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryRed.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Iconsax.calendar_1,
-                    color: AppColors.primaryRed,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'trip_schedule'.tr(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.calendar_today_outlined),
-              title: Text('preferred_date'.tr()),
-              subtitle: Text(formattedDate),
-              onTap: () async {
-                final now = DateTime.now();
-                final tomorrow = DateTime(
-                  now.year,
-                  now.month,
-                  now.day,
-                ).add(const Duration(days: 1));
-
-                DateTime initial = _cubit.preferredDate;
-                if (initial.isBefore(tomorrow)) {
-                  initial = tomorrow;
-                }
-
-                final picked = await showDatePicker(
-                  context: context,
-                  firstDate: tomorrow,
-                  lastDate: now.add(const Duration(days: 365)),
-                  initialDate: initial,
-                );
-                if (picked != null) {
-                  _cubit.updatePreferredDate(picked);
-                  setState(() {
-                    selectedTripSlotLabel = null;
-                    _cubit.updatePreferredTime(null);
-                  });
-                  if (_cubit.selectedBranchId != null &&
-                      _cubit.selectedBranchId!.isNotEmpty) {
-                    _fetchTripConfig();
-                  } else {
-                    setState(() {
-                      tripTimeSlots = [];
-                    });
-                  }
-                  setState(() {});
-                }
-              },
-            ),
-            const SizedBox(height: 8),
-            if (tripConfigLoading)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (tripConfigError != null)
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Text(
-                  tripConfigError!,
-                  style: TextStyle(color: Colors.red.shade700),
-                ),
-              )
-            else if (tripTimeSlots.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Text(
-                  'no_slots_available_for_date'.tr(),
-                  style: TextStyle(color: Colors.orange.shade800),
-                ),
-              )
-            else ...[
-              Text(
-                'booking_step_date_time'.tr(),
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: tripTimeSlots.map((label) {
-                  final selected = selectedTripSlotLabel == label;
-                  return ChoiceChip(
-                    label: Text(label),
-                    selected: selected,
-                    onSelected: (_) => _onTripSlotSelected(label),
-                  );
-                }).toList(),
-              ),
-              if (_cubit.durationHours != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  '${'duration_hours'.tr()}: ${_cubit.durationHours}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-              Text(
-                'students_count'.tr(),
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _studentsCountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'students_count'.tr(),
-                  prefixIcon: const Icon(Iconsax.profile_2user),
-                  helperText: tr(
-                    'trip_min_students_note',
-                    args: [_cubit.minimumStudentsForCreate.toString()],
-                  ),
-                  helperStyle: const TextStyle(color: AppColors.primaryRed),
-                ),
-                onChanged: (val) {
-                  final parsed = int.tryParse(val) ?? 0;
-                  _cubit.updateStudentsCount(parsed);
-                  setState(() {});
-                },
-                validator: (val) {
-                  final parsed = int.tryParse(val ?? '') ?? 0;
-                  if (parsed < _cubit.minimumStudentsForCreate) {
-                    return tr(
-                      'trip_min_students_error',
-                      args: [_cubit.minimumStudentsForCreate.toString()],
-                    );
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryRed.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.primaryRed.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tr(
-                        'trip_price_per_student_value',
-                        args: [_money(_cubit.ticketPricePerStudent)],
-                      ),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      tr(
-                        'trip_tickets_total_value',
-                        args: [_money(_ticketsTotal())],
-                      ),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.primaryRed,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTripPaymentSection(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColor.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'trip_payment_option'.tr(),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            RadioListTile<String>(
-              title: Text('trip_pay_full'.tr()),
-              value: 'full',
-              groupValue: _cubit.paymentOption,
-              onChanged: (v) {
-                _cubit.updatePaymentOption(v ?? 'full');
-                setState(() {});
-              },
-            ),
-            RadioListTile<String>(
-              title: Text('trip_pay_deposit'.tr()),
-              value: 'deposit',
-              groupValue: _cubit.paymentOption,
-              onChanged: (v) {
-                _cubit.updatePaymentOption(v ?? 'deposit');
-                setState(() {});
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                tr(
-                  'trip_deposit_amount_value',
-                  args: [_money(_cubit.depositPercent), _money(_depositAmount())],
-                ),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.primaryRed,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddOnsSection(BuildContext context) {
-    final theme = Theme.of(context);
-    final catalog = _tripAddonCatalog;
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColor.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryRed.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Iconsax.category,
-                    color: AppColors.primaryRed,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'trip_addons'.tr(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text('trip_addons_hint'.tr(), style: theme.textTheme.bodySmall),
-            const SizedBox(height: 16),
-            if (catalog.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.grey.shade600),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'no_addons_selected'.tr(),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              ...catalog.map((item) {
-                final id = item['id']?.toString() ?? '';
-                final name = item['name']?.toString() ?? id;
-                final priceVal = item['price'];
-                final price = priceVal is int
-                    ? priceVal
-                    : (priceVal is num
-                        ? priceVal.toInt()
-                        : int.tryParse(priceVal?.toString() ?? '0') ?? 0);
-                final qty = tripAddonQtyById[id] ?? 0;
-                final itemTotal = price * qty;
-                final description = item['description']?.toString();
-                return ListTile(
-                  dense: true,
-                  title: Text('$name ($price ${'riyal'.tr()})'),
-                  subtitle: (qty > 0 ||
-                          (description != null && description.isNotEmpty))
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (description != null && description.isNotEmpty)
-                              Text(description),
-                            if (qty > 0)
-                              Text(
-                                tr(
-                                  'trip_item_total_value',
-                                  args: [_money(itemTotal.toDouble())],
-                                ),
-                              ),
-                          ],
-                        )
-                      : null,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: qty <= 0
-                            ? null
-                            : () => _bumpTripAddonQuantity(id, -1),
-                      ),
-                      Text('$qty'),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: id.isEmpty
-                            ? null
-                            : () => _bumpTripAddonQuantity(id, 1),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            if (catalog.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              const Divider(),
-              const SizedBox(height: 8),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  tr(
-                    'trip_addons_total_value',
-                    args: [_money(_addonsTotal())],
-                  ),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: AppColors.primaryRed,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotesSection(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowColor.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryRed.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Iconsax.note_2,
-                    color: AppColors.primaryRed,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'additional_notes'.tr(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _specialRequestController,
-              decoration: InputDecoration(
-                hintText: 'special_requirements_hint'.tr(),
-              ),
-              maxLines: 4,
-              onChanged: (value) {
-                _cubit.updateSpecialRequirements(value);
-                setState(() {});
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _submit() {
